@@ -73,7 +73,7 @@ export default function SettingsPage() {
       { label: "Administration", href: "/settings" }
     ])
     
-    fetch('http://localhost:3000/api/settings')
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings`)
       .then(res => res.json())
       .then(data => {
          if (data) {
@@ -100,7 +100,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-       await fetch('http://localhost:3000/api/settings', {
+       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(settings)

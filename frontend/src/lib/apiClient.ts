@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const apiClient = axios.create({
-  baseURL: 'http://localhost:3000', // Points directly to the NestJS backend
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000', // Points directly to the NestJS backend
   headers: {
     'Content-Type': 'application/json',
   },
