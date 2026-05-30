@@ -65,7 +65,8 @@ export default function SurveillancePage() {
   // Start stream processing in AI service
   const toggleAiStream = async (cam: any) => {
     try {
-      await apiClient.post('http://localhost:8000/streams/start', {
+      const aiUrl = process.env.NEXT_PUBLIC_AI_URL || 'http://localhost:8000'
+      await apiClient.post(`${aiUrl}/streams/start`, {
         cameraId: cam.id,
         streamUrl: cam.streamUrl,
         cameraName: cam.name

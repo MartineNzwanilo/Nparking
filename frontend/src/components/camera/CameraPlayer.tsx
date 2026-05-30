@@ -47,19 +47,28 @@ export function CameraPlayer({ streamUrl, name, siteName, onFullscreen, isFullsc
   }, [streamUrl])
 
   useEffect(() => {
-    const wsUrl = `ws://${window.location.hostname}:8000/ws`
-    const ws = new WebSocket(wsUrl)
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.type === "frame" && data.streamUrl === streamUrl) {
-           if (data.frame) {
-             setFrameData(data)
-           }
-        }
-      } catch (e) {}
+    // Use wss:// when the page is served over HTTPS to avoid mixed content errors
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const aiServiceUrl = process.env.NEXT_PUBLIC_AI_URL || `${window.location.protocol}//localhost:8000`
+    const wsHost = new URL(aiServiceUrl).host
+    const wsUrl = `${wsProtocol}//${wsHost}/ws`
+    let ws: WebSocket | null = null
+    try {
+      ws = new WebSocket(wsUrl)
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data.type === "frame" && data.streamUrl === streamUrl) {
+             if (data.frame) {
+               setFrameData(data)
+             }
+          }
+        } catch (e) {}
+      }
+    } catch (e) {
+      // WebSocket not available / blocked — silently ignore
     }
-    return () => ws.close()
+    return () => ws?.close()
   }, [streamUrl])
 
   return (
