@@ -1542,7 +1542,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     return GestureDetector(
       onTap: () async {
         final ImagePicker picker = ImagePicker();
-        final XFile? image = await picker.pickImage(source: ImageSource.camera);
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1200,       // Resize to max 1200px wide
+          maxHeight: 900,       // Resize to max 900px tall
+          imageQuality: 60,     // 60% quality — still sharp for vehicle ID
+        );
         if (image != null) {
           onCapture(image.path);
         }
