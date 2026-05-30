@@ -168,8 +168,8 @@ export function Sidebar({ className, isMobile, onCloseTrigger: CloseTrigger }: S
               isProfileOpen && "border-primary shadow-sm"
             )}
           >
-             {user.image ? (
-                <img src={user.image} alt={user.name || ''} className="w-full h-full object-cover" />
+             {(user as any).image ? (
+                <img src={(user as any).image} alt={user.name || ''} className="w-full h-full object-cover" />
              ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary scale-110">
                    <Icons8 icon="user-male-circle" className={cn("w-6 h-6")} />
@@ -217,13 +217,13 @@ export function Sidebar({ className, isMobile, onCloseTrigger: CloseTrigger }: S
                 <div className="p-4 flex items-center justify-between bg-card text-foreground">
                   <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden">
-                        {user.image ? (
-                          <img src={user.image} alt="" className="w-full h-full object-cover" />
+                        {(user as any).image ? (
+                          <img src={(user as any).image} alt="" className="w-full h-full object-cover" />
                         ) : <Icons8 icon="user-male-circle" className="w-7 h-7" />}
                      </div>
                      <div className="flex flex-col">
                         <p className="text-[13px] font-bold leading-tight">{user.name || 'Jonh Smith'}</p>
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{user.email?.includes('admin') ? 'Administrator' : 'User profile'}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{(user as any).email?.includes('admin') ? 'Administrator' : 'User profile'}</p>
                      </div>
                   </div>
                 </div>
