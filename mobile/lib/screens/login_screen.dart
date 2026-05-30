@@ -136,55 +136,11 @@ class _LoginScreenState extends State<LoginScreen>
                         opacity: _fadeAnim,
                         child: Column(
                           children: [
-                            // Logo badge
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: BackdropFilter(
-                                filter:
-                                    ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                                child: Container(
-                                  width: 88,
-                                  height: 88,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primary
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(
-                                      color: AppTheme.primary
-                                          .withValues(alpha: 0.3),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.local_parking_rounded,
-                                    color: AppTheme.primary,
-                                    size: 44,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'Smart Parking',
-                              style: TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                                color: isDark
-                                    ? AppTheme.textPrimaryDark
-                                    : AppTheme.textPrimaryLight,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Operator Management System',
-                              style: TextStyle(
-                                fontSize: 13,
-                                letterSpacing: 0.5,
-                                color: isDark
-                                    ? AppTheme.textSecondaryDark
-                                    : AppTheme.textSecondaryLight,
-                              ),
+                            // Logo
+                            Image.asset(
+                              'assets/images/nps_logo.png',
+                              height: 120,
+                              fit: BoxFit.contain,
                             ),
                           ],
                         ),
@@ -231,27 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      Text(
-                                        context.t.tr('smartParkingLogin'),
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? AppTheme.textPrimaryDark
-                                              : AppTheme.textPrimaryLight,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        context.t.tr('signInWithAssigned'),
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: isDark
-                                              ? AppTheme.textSecondaryDark
-                                              : AppTheme.textSecondaryLight,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 28),
+                                      const SizedBox(height: 10),
 
                                       // Identifier field
                                       _PremiumField(
@@ -407,23 +343,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 32),
 
-                      // ── Footer ────────────────────────────────
-                      FadeTransition(
-                        opacity: _fadeAnim,
-                        child: Center(
-                          child: Text(
-                            'Powered by JAcMic Technology',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? AppTheme.textSecondaryDark
-                                      .withValues(alpha: 0.6)
-                                  : AppTheme.textSecondaryLight
-                                      .withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      ),
+                      // Footer removed
 
                       const SizedBox(height: 40),
                     ],

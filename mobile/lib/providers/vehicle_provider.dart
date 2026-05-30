@@ -216,6 +216,7 @@ class VehicleProvider extends ChangeNotifier {
     String? driverName,
     String? driverPhone,
     String? driverCompany,
+    String? propertiesLeft,
   }) async {
     try {
       final payload = {
@@ -225,6 +226,7 @@ class VehicleProvider extends ChangeNotifier {
         if (driverName != null && driverName.isNotEmpty) 'driverName': driverName,
         if (driverPhone != null && driverPhone.isNotEmpty) 'driverPhone': driverPhone,
         if (driverCompany != null && driverCompany.isNotEmpty) 'driverCompany': driverCompany,
+        if (propertiesLeft != null && propertiesLeft.isNotEmpty) 'propertiesLeft': propertiesLeft,
       };
 
       if (SyncService().status == SyncStatus.offline) {

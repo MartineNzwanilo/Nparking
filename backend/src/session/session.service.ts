@@ -58,6 +58,7 @@ export class SessionService {
       driverName?: string;
       driverPhone?: string;
       driverCompany?: string;
+      propertiesLeft?: string;
     },
     actor: SessionActor,
   ) {
@@ -119,6 +120,7 @@ export class SessionService {
         driverName: data.driverName?.trim() || null,
         driverPhone: data.driverPhone?.trim() || null,
         driverCompany: data.driverCompany?.trim() || null,
+        propertiesLeft: data.propertiesLeft?.trim() || null,
       },
     });
 
@@ -237,6 +239,7 @@ export class SessionService {
         title: `${s.vehicle.plateNumber} Checked In`,
         subtitle: `${s.vehicle.category.name} - Collected TZS ${s.payment?.amount || 0}`,
         timestamp: s.checkIn.toISOString(),
+        propertiesLeft: s.propertiesLeft,
       });
 
       // Add Check-Out event if applicable

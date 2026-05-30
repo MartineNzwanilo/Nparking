@@ -14,6 +14,7 @@ interface Session {
   checkIn: string;
   checkOut: string | null;
   amount: number | null;
+  propertiesLeft?: string | null;
   site: { name: string };
 }
 
@@ -26,6 +27,9 @@ interface Vehicle {
   company?: string | null;
   color?: string | null;
   makeModel?: string | null;
+  frontImage?: string | null;
+  plateImage?: string | null;
+  sideImage?: string | null;
   category: { id: string; name: string; price: number };
   sessions: Session[];
 }

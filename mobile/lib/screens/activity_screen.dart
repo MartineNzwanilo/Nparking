@@ -195,6 +195,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       // Key-Value Receipt Details
                       _buildReceiptRow(context, context.t.tr('statusLabel'), activity['type']?.toString() ?? '', isValueAccent: true),
                       const SizedBox(height: 12),
+                      if (activity['propertiesLeft'] != null && activity['propertiesLeft'].toString().trim().isNotEmpty) ...[
+                        _buildReceiptRow(context, 'Properties', activity['propertiesLeft'].toString()),
+                        const SizedBox(height: 12),
+                      ],
                       _buildReceiptRow(context, context.t.tr('timestampLabel'), activity['timestamp']?.toString().substring(0, 16) ?? ''),
                       
                       const SizedBox(height: 20),
@@ -608,9 +612,22 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   }).toList();
 
                   if (filteredActivities.isEmpty) {
-                    return CameraScanningCarAnimation(
-                      title: context.t.tr('noRecentActivity'),
-                      subtitle: context.t.tr('noActivityFound'),
+                    return RefreshIndicator(
+                      onRefresh: () => provider.fetchActivities(
+                        startDate: _selectedDateRange?.start,
+                        endDate: _selectedDateRange?.end,
+                      ),
+                      color: AppTheme.primary,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          child: CameraScanningCarAnimation(
+                            title: context.t.tr('noRecentActivity'),
+                            subtitle: context.t.tr('noActivityFound'),
+                          ),
+                        ),
+                      ),
                     );
                   }
 

@@ -35,148 +35,157 @@ class DashboardScreen extends StatelessWidget {
           backgroundColor:
               isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
-
-                  // ── Header ──────────────────────────────────────
-                  Row(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await vehiclesProvider.fetchVehicles();
+                await activityProvider.fetchActivities();
+              },
+              color: AppTheme.primary,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _greeting(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: isDark
-                                    ? AppTheme.textSecondaryDark
-                                    : AppTheme.textSecondaryLight,
-                              ),
+                      const SizedBox(height: 20),
+
+                      // ── Header ──────────────────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _greeting(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark
+                                        ? AppTheme.textSecondaryDark
+                                        : AppTheme.textSecondaryLight,
+                                  ),
+                                ),
+                                Text(
+                                  greetingName,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.4,
+                                    color: isDark
+                                        ? AppTheme.textPrimaryDark
+                                        : AppTheme.textPrimaryLight,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            Text(
-                              greetingName,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4,
-                                color: isDark
-                                    ? AppTheme.textPrimaryDark
-                                    : AppTheme.textPrimaryLight,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      _IconBtn(
-                        icon: LucideIcons.moon,
-                        isDark: isDark,
-                        onTap: () =>
-                            context.read<ThemeProvider>().toggleTheme(),
-                      ),
-                      const SizedBox(width: 8),
-                      _IconBtn(
-                        icon: LucideIcons.languages,
-                        isDark: isDark,
-                        onTap: () => _showLanguageSheet(context),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Blacklist alert — ONLY when there's an actual alert ──
-                  if (blacklistedVehicles.isNotEmpty)
-                    _BlacklistBanner(vehicle: blacklistedVehicles.first),
-
-                  if (blacklistedVehicles.isNotEmpty) const SizedBox(height: 16),
-
-                  // ── Hero: vehicles inside right now ──────────────
-                  _HeroCard(
-                    insideCount: insideVehicles.length,
-                    registeredCount: registeredCount,
-                    isDark: isDark,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── PRIMARY ACTION: Check In ──────────────────────
-                  _PrimaryCheckInButton(isDark: isDark),
-
-                  const SizedBox(height: 14),
-
-                  // ── Secondary shortcuts ───────────────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SecondaryBtn(
-                          icon: LucideIcons.car,
-                          label: context.t.tr('vehicles'),
-                          isDark: isDark,
-                          onTap: () => context
-                              .read<ShellNavigationProvider>()
-                              .setIndex(1, maxIndex: 4),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _SecondaryBtn(
-                          icon: LucideIcons.activity,
-                          label: context.t.tr('activity'),
-                          isDark: isDark,
-                          onTap: () => context
-                              .read<ShellNavigationProvider>()
-                              .setIndex(3, maxIndex: 4),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Last 3 activity entries (no header, no "view all") ──
-                  if (activities.isNotEmpty) ...[
-                    Text(
-                      context.t.tr('recentActivity').toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.4,
-                        color: isDark
-                            ? AppTheme.textSecondaryDark
-                            : AppTheme.textSecondaryLight,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: ListView.separated(
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: math.min(activities.length, 3),
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, i) {
-                          final activity =
-                              activities.take(3).toList()[i];
-                          return _ActivityRow(
-                            activity: activity,
+                          ),
+                          _IconBtn(
+                            icon: LucideIcons.moon,
                             isDark: isDark,
-                            onTap: () => context
-                                .read<ShellNavigationProvider>()
-                                .setIndex(3, maxIndex: 4),
-                          );
-                        },
+                            onTap: () =>
+                                context.read<ThemeProvider>().toggleTheme(),
+                          ),
+                          const SizedBox(width: 8),
+                          _IconBtn(
+                            icon: LucideIcons.languages,
+                            isDark: isDark,
+                            onTap: () => _showLanguageSheet(context),
+                          ),
+                        ],
                       ),
-                    ),
-                  ] else
-                    const Spacer(),
-                ],
+
+                      const SizedBox(height: 24),
+
+                      // ── Blacklist alert — ONLY when there's an actual alert ──
+                      if (blacklistedVehicles.isNotEmpty)
+                        _BlacklistBanner(vehicle: blacklistedVehicles.first),
+
+                      if (blacklistedVehicles.isNotEmpty) const SizedBox(height: 16),
+
+                      // ── Hero: vehicles inside right now ──────────────
+                      _HeroCard(
+                        insideCount: insideVehicles.length,
+                        registeredCount: registeredCount,
+                        isDark: isDark,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ── PRIMARY ACTION: Check In ──────────────────────
+                      _PrimaryCheckInButton(isDark: isDark),
+
+                      const SizedBox(height: 14),
+
+                      // ── Secondary shortcuts ───────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _SecondaryBtn(
+                              icon: LucideIcons.car,
+                              label: context.t.tr('vehicles'),
+                              isDark: isDark,
+                              onTap: () => context
+                                  .read<ShellNavigationProvider>()
+                                  .setIndex(1, maxIndex: 4),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _SecondaryBtn(
+                              icon: LucideIcons.activity,
+                              label: context.t.tr('activity'),
+                              isDark: isDark,
+                              onTap: () => context
+                                  .read<ShellNavigationProvider>()
+                                  .setIndex(3, maxIndex: 4),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ── Last 3 activity entries (no header, no "view all") ──
+                      if (activities.isNotEmpty) ...[
+                        Text(
+                          context.t.tr('recentActivity').toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.4,
+                            color: isDark
+                                ? AppTheme.textSecondaryDark
+                                : AppTheme.textSecondaryLight,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: math.min(activities.length, 3),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, i) {
+                            final activity =
+                                activities.take(3).toList()[i];
+                            return _ActivityRow(
+                              activity: activity,
+                              isDark: isDark,
+                              onTap: () => context
+                                  .read<ShellNavigationProvider>()
+                                  .setIndex(3, maxIndex: 4),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

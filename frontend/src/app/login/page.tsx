@@ -45,11 +45,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Animated Background Gradients */}
-      <div className="absolute inset-0 z-0">
-         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full animate-pulse"></div>
-         <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse delay-700"></div>
-      </div>
+      {/* Simplified Background */}
+      <div className="absolute inset-0 z-0 bg-background"></div>
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -64,7 +61,6 @@ export default function LoginPage() {
                 </div>
                 <div>
                     <h1 className="text-2xl font-black uppercase tracking-widest text-foreground">Parking System</h1>
-                    <p className="text-[12px] font-bold text-muted-foreground mt-1">Enterprise Management Hub</p>
                 </div>
             </div>
 
@@ -132,10 +128,6 @@ export default function LoginPage() {
                 </button>
             </form>
         </div>
-        
-        <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-8 opacity-50">
-            Secure Infrastructure • Jacmic Tech
-        </p>
       </motion.div>
     </div>
   );

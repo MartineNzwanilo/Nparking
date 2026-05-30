@@ -119,7 +119,7 @@ export class VehicleService {
       include: {
         category: true,
         sessions: {
-          take: 1,
+          take: 5,
           orderBy: { checkIn: 'desc' },
           include: { site: true },
         },
@@ -134,7 +134,7 @@ export class VehicleService {
       include: {
         category: true,
         sessions: {
-          take: 1,
+          take: 5,
           orderBy: { checkIn: 'desc' },
           include: { site: true },
         },

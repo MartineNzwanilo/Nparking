@@ -111,6 +111,7 @@ model ParkingSession {
   driverName    String?
   driverPhone   String?
   driverCompany String?
+  propertiesLeft String?
   
   // Overstay & Anomaly tracking
   fineAmount          Float?

@@ -47,6 +47,10 @@ export class SessionController {
       plateNumber: string;
       categoryName: string;
       amount?: number;
+      driverName?: string;
+      driverPhone?: string;
+      driverCompany?: string;
+      propertiesLeft?: string;
     },
   ) {
     return this.sessionService.checkIn(data, req.user);

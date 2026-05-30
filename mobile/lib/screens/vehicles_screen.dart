@@ -823,20 +823,35 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   });
 
                   if (filteredList.isEmpty) {
-                    return CarEnteringGateAnimation(
-                      title: _searchQuery.isNotEmpty || _filterStatus != 'All'
-                          ? context.t.tr('noVehiclesMatchFilter')
-                          : context.t.tr('noVehiclesFound'),
-                      subtitle: '',
+                    return RefreshIndicator(
+                      onRefresh: () => context.read<VehicleProvider>().fetchVehicles(),
+                      color: AppTheme.primary,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          child: CarEnteringGateAnimation(
+                            title: _searchQuery.isNotEmpty || _filterStatus != 'All'
+                                ? context.t.tr('noVehiclesMatchFilter')
+                                : context.t.tr('noVehiclesFound'),
+                            subtitle: '',
+                          ),
+                        ),
+                      ),
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.only(left: 20, right: 20, bottom: 40),
-                    itemCount: filteredList.length,
-                    itemBuilder: (context, index) {
-                      return _buildPremiumVehicleCard(filteredList[index]);
-                    },
+                  return RefreshIndicator(
+                    onRefresh: () => context.read<VehicleProvider>().fetchVehicles(),
+                    color: AppTheme.primary,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 40),
+                      itemCount: filteredList.length,
+                      itemBuilder: (context, index) {
+                        return _buildPremiumVehicleCard(filteredList[index]);
+                      },
+                    ),
                   );
                 },
               ),

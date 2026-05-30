@@ -42,10 +42,12 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final TextEditingController _driverNameController = TextEditingController();
   final TextEditingController _driverPhoneController = TextEditingController();
   final TextEditingController _driverCompanyController = TextEditingController();
+  final TextEditingController _propertiesController = TextEditingController();
 
   final GlobalKey<FormState> _checkInFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _registrationFormKey = GlobalKey<FormState>();
   Timer? _debounce;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -59,6 +61,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _driverNameController.dispose();
     _driverPhoneController.dispose();
     _driverCompanyController.dispose();
+    _propertiesController.dispose();
     super.dispose();
   }
 
@@ -334,7 +337,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             backgroundColor: AppTheme.primary,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
-                          onPressed: () async {
+                          onPressed: _isLoading ? null : () async {
                             if (!(_registrationFormKey.currentState?.validate() ?? false)) {
                               return;
                             }
@@ -347,6 +350,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
                               );
                               return;
                             }
+
+                            setState(() {
+                              _isLoading = true;
+                            });
 
                             final provider = context.read<VehicleProvider>();
                             double amount = 0;
@@ -375,6 +382,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                 driverName: _driverNameController.text.isNotEmpty ? _driverNameController.text.trim() : owner,
                                 driverPhone: _driverPhoneController.text.isNotEmpty ? _driverPhoneController.text.trim() : _phoneController.text.trim(),
                                 driverCompany: _driverCompanyController.text.isNotEmpty ? _driverCompanyController.text.trim() : _companyController.text.trim(),
+                                propertiesLeft: _propertiesController.text.trim(),
                               );
                               if (!context.mounted) return;
                               Navigator.pop(context);
@@ -388,24 +396,35 @@ class _CheckInScreenState extends State<CheckInScreen> {
                               _driverNameController.clear();
                               _driverPhoneController.clear();
                               _driverCompanyController.clear();
+                              _propertiesController.clear();
                               setState(() {
                                 _isNewVehicle = true;
                                 _selectedVehicle = null;
                                 _frontImagePath = null;
                                 _plateImagePath = null;
                                 _sideImagePath = null;
+                                _isLoading = false;
                               });
 
                               _promptPrintTicket(context, session);
                               _showTicketDialog(context, session);
                             } catch (_) {
                               if (!context.mounted) return;
+                              setState(() {
+                                _isLoading = false;
+                              });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Failed to register and check in vehicle.')),
                               );
                             }
                           },
-                          child: Text(
+                          child: _isLoading
+                            ? const SizedBox(
+                                width: 20, 
+                                height: 20, 
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                              )
+                            : Text(
                             context.t.tr('completeRegistration'),
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
@@ -439,12 +458,14 @@ class _CheckInScreenState extends State<CheckInScreen> {
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
     bool isCompact = false,
+    int maxLines = 1,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
+      maxLines: maxLines,
       style: TextStyle(color: AppTheme.textPrimary(context), fontSize: isCompact ? 13 : 14),
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: isDark ? Colors.white38 : Colors.black38, size: isCompact ? 18 : 22),
@@ -624,6 +645,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     _buildInputField(_driverPhoneController, "Driver Phone Number", LucideIcons.phone, keyboardType: TextInputType.phone),
                     const SizedBox(height: 12),
                     _buildInputField(_driverCompanyController, "Driver Company / Agency", LucideIcons.building),
+                    const SizedBox(height: 12),
+                    _buildInputField(_propertiesController, "Properties Left in Vehicle", LucideIcons.package, maxLines: 2),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -653,7 +676,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      onPressed: isSelectedInside ? null : () async {
+                      onPressed: (isSelectedInside || _isLoading) ? null : () async {
                         if (!(_checkInFormKey.currentState?.validate() ?? false)) {
                           return;
                         }
@@ -662,6 +685,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           _showPremiumRegistrationDialog();
                           return;
                         }
+
+                        setState(() {
+                          _isLoading = true;
+                        });
 
                         final provider = context.read<VehicleProvider>();
                         double amount = 0;
@@ -678,6 +705,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             driverName: _driverNameController.text.trim(),
                             driverPhone: _driverPhoneController.text.trim(),
                             driverCompany: _driverCompanyController.text.trim(),
+                            propertiesLeft: _propertiesController.text.trim(),
                           );
                           
                           if (mounted) {
@@ -685,20 +713,31 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             _driverNameController.clear();
                             _driverPhoneController.clear();
                             _driverCompanyController.clear();
+                            _propertiesController.clear();
                             setState(() {
                               _isNewVehicle = true;
                               _selectedVehicle = null;
+                              _isLoading = false;
                             });
                             _showTicketDialog(context, session);
                           }
                         } catch (_) {
                           if (!context.mounted) return;
+                          setState(() {
+                            _isLoading = false;
+                          });
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
                           );
                         }
                       },
-                      child: Row(
+                      child: _isLoading 
+                        ? const SizedBox(
+                            width: 24, 
+                            height: 24, 
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                          )
+                        : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
@@ -1032,6 +1071,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     final driverName = session['driverName'] ?? 'N/A';
     final driverPhone = session['driverPhone'] ?? 'N/A';
     final driverCompany = session['driverCompany'] ?? 'N/A';
+    final propertiesLeft = session['propertiesLeft'];
 
     showGeneralDialog(
       context: context,
@@ -1131,6 +1171,27 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   _buildTicketRow(context, 'Driver Name', driverName),
                   _buildTicketRow(context, 'Driver Phone', driverPhone),
                   _buildTicketRow(context, 'Driver Company', driverCompany),
+                  
+                  if (propertiesLeft != null && propertiesLeft.toString().trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('Properties Left in Vehicle:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.warning)),
+                          const SizedBox(height: 4),
+                          Text(propertiesLeft.toString().trim(), style: TextStyle(fontSize: 12, color: AppTheme.textPrimary(context))),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
                   _buildTicketRow(context, 'Fee Paid', 'TZS ${amount.toStringAsFixed(0)}', isBold: true, color: AppTheme.success),
                   
                   const SizedBox(height: 24),

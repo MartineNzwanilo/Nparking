@@ -19,6 +19,7 @@ class PrintingService {
     final driverName = session['driverName'] ?? 'N/A';
     final driverPhone = session['driverPhone'] ?? 'N/A';
     final driverCompany = session['driverCompany'] ?? 'N/A';
+    final propertiesLeft = session['propertiesLeft'];
 
     final doc = pw.Document();
 
@@ -57,6 +58,17 @@ class PrintingService {
               _buildRow('Phone', driverPhone),
               _buildRow('Company', driverCompany),
               
+              if (propertiesLeft != null && propertiesLeft.toString().trim().isNotEmpty) ...[
+                pw.SizedBox(height: 5),
+                pw.Divider(borderStyle: pw.BorderStyle.dashed),
+                pw.SizedBox(height: 5),
+                pw.Text('Properties Left in Vehicle:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 2),
+                pw.Text(propertiesLeft.toString().trim(), style: const pw.TextStyle(fontSize: 10)),
+                pw.SizedBox(height: 5),
+                pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              ],
+              
               pw.SizedBox(height: 10),
               pw.Divider(),
               pw.SizedBox(height: 5),
@@ -66,8 +78,6 @@ class PrintingService {
               pw.SizedBox(height: 10),
 
               pw.Text('Thank you for parking with us!', style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 5),
-              pw.Text('Powered by Antigravity', style: const pw.TextStyle(fontSize: 8)),
             ],
           );
         },
