@@ -85,6 +85,7 @@ export default function SettingsPage() {
              enableEmailAlerts: data.enableEmailAlerts || false,
              twilioAccountSid: data.twilioAccountSid || '',
              twilioAuthToken: data.twilioAuthToken || '',
+             twilioWhatsappNum: data.twilioWhatsappNum || '',
              enableWhatsappAlerts: data.enableWhatsappAlerts || false,
              twilioSmsNum: data.twilioSmsNum || '',
              enableSmsAlerts: data.enableSmsAlerts || false,
