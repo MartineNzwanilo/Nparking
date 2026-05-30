@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ParkingSite {
+  id          String   @id @default(uuid())
+  name        String
+  location    String
+  capacity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  sessions    ParkingSession[]
+  cameras     Camera[]
+}
+
+model User {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  email       String?  @unique
+  password    String
+  name        String
+  role        String   @default("WATCHMAN")
+  isActive    Boolean  @default(true)
+  siteId      String?
+  site        ParkingSite? @relation(fields: [siteId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions    ParkingSession[]
+  accessLogs  AccessLog[]
+}
+
+model AccessLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // "LOGIN", "LOGOUT"
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model SystemSettings {
+  id                   String   @id @default("global")
+  smtpHost             String?
+  smtpPort             Int?
+  smtpUser             String?
+  smtpPassword         String?
+  enableEmailAlerts    Boolean  @default(false)
+  twilioAccountSid     String?
+  twilioAuthToken      String?
+  twilioWhatsappNum    String?
+  enableWhatsappAlerts Boolean  @default(false)
+  twilioSmsNum         String?
+  enableSmsAlerts      Boolean  @default(false)
+  overstayTimeLimit    String   @default("08:00:00") // Admin setting for checkout deadline
+  overstayFineAmount   Float    @default(5000)       // Admin setting for overstay penalty
+  updatedAt            DateTime @updatedAt
+}
+
+model VehicleCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. Bodaboda, Sedan, Daladala
+  price       Float    // e.g. 1000, 3000
+  createdAt   DateTime @default(now())
+
+  vehicles    Vehicle[]
+}
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  plateNumber String   @unique
+  categoryId  String
+  category    VehicleCategory @relation(fields: [categoryId], references: [id])
+  ownerName   String?
+  phone       String?
+  company     String?
+  color       String?
+  makeModel   String?
+  frontImage  String?
+  plateImage  String?
+  sideImage   String?
+  isBlacklisted Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions    ParkingSession[]
+}
+
+model ParkingSession {
+  id            String   @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id])
+  siteId        String
+  site          ParkingSite @relation(fields: [siteId], references: [id])
+  watchmanId    String
+  watchman      User     @relation(fields: [watchmanId], references: [id])
+  checkIn       DateTime @default(now())
+  checkOut      DateTime?
+  status        String   @default("INSIDE") // INSIDE, CHECKED_OUT
+  amountDue     Float    @default(0)
+  driverName    String?
+  driverPhone   String?
+  driverCompany String?
+  
+  // Overstay & Anomaly tracking
+  fineAmount          Float?
+  actualDepartureTime DateTime?
+  watchmanForgot      Boolean  @default(false)
+  
+  payment     Payment?
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  sessionId   String   @unique
+  session     ParkingSession @relation(fields: [sessionId], references: [id])
+  amount      Float
+  method      String   @default("CASH") // CASH, MOBILE_MONEY
+  reference   String?  // For mobile money/card receipts
+  collectedAt DateTime @default(now())
+}
+
+model Camera {
+  id          String   @id @default(uuid())
+  name        String                        // e.g. "Main Entrance"
+  streamUrl   String                        // e.g. http://192.168.1.105:8080/video
+  siteId      String?
+  site        ParkingSite? @relation(fields: [siteId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

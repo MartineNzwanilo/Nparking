@@ -1,0 +1,10 @@
+ultralytics
+easyocr
+opencv-python
+fastapi
+uvicorn[standard]
+websockets
+httpx
+numpy
+python-multipart
+Pillow
