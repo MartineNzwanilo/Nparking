@@ -139,7 +139,7 @@ export class NotificationService {
         const authHeader = 'Basic ' + Buffer.from(`${settings.beemApiKey}:${settings.beemSecretKey}`).toString('base64');
 
         const { status, data } = await this.httpsPost(
-          'https://openapi.beem.africa/v1/send',
+          'https://apisms.beem.africa/v1/send',
           payload,
           { 'Content-Type': 'application/json', 'Authorization': authHeader },
         );
