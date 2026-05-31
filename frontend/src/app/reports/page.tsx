@@ -430,7 +430,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                       <XAxis dataKey="date" tickFormatter={(val) => format(new Date(val), 'MMM dd')} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: tickColor, fontWeight: 900 }} dy={10} />
                       <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `${val >= 1000 ? (val / 1000) + 'k' : val}`} tick={{ fontSize: 10, fill: tickColor, fontWeight: 900 }} />
-                      <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '12px', fontSize: '12px', fontWeight: 900 }} formatter={(v: any, name: string) => [`Tsh ${Number(v).toLocaleString()}`, name === 'revenue' ? 'Parking Revenue' : 'Fines']} labelFormatter={(l) => format(new Date(l), 'MMM dd, yyyy')} />
+                      <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '12px', fontSize: '12px', fontWeight: 900 }} formatter={(v: any, name: any) => [`Tsh ${Number(v).toLocaleString()}`, name === 'revenue' ? 'Parking Revenue' : 'Fines']} labelFormatter={(l) => format(new Date(l), 'MMM dd, yyyy')} />
                       <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" dot={false} activeDot={{ r: 5, fill: '#10b981', strokeWidth: 0 }} />
                       <Area type="monotone" dataKey="fines" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorFines)" dot={false} activeDot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} />
                     </AreaChart>
