@@ -61,6 +61,11 @@ export default function SettingsPage() {
     enableWhatsappAlerts: false,
     twilioSmsNum: '',
     enableSmsAlerts: false,
+    enableBeemSms: false,
+    beemApiKey: '',
+    beemSecretKey: '',
+    beemSenderId: 'INFO',
+    smsTemplate: '',
     overstayTimeLimit: '08:00:00',
     overstayFineAmount: 5000,
   });
@@ -89,6 +94,11 @@ export default function SettingsPage() {
              enableWhatsappAlerts: data.enableWhatsappAlerts || false,
              twilioSmsNum: data.twilioSmsNum || '',
              enableSmsAlerts: data.enableSmsAlerts || false,
+             enableBeemSms: data.enableBeemSms || false,
+             beemApiKey: data.beemApiKey || '',
+             beemSecretKey: data.beemSecretKey || '',
+             beemSenderId: data.beemSenderId || 'INFO',
+             smsTemplate: data.smsTemplate || '',
              overstayTimeLimit: data.overstayTimeLimit || '08:00:00',
              overstayFineAmount: data.overstayFineAmount || 5000,
            });
@@ -543,6 +553,80 @@ export default function SettingsPage() {
                       <p className="text-[9px] font-bold text-muted-foreground mt-1">
                         We will securely reuse the Account SID and Auth Token you configured above for WhatsApp.
                       </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden mt-8">
+                <div className="p-5 border-b border-border/50 bg-secondary/5 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                    <Icons8 icon="messaging" className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-[13px] font-black uppercase tracking-tight text-foreground">SMS Notifications (Beem Africa)</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground">Send text messages locally using Beem Africa SMS Gateway API keys.</p>
+                  </div>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-[11px] font-black uppercase tracking-widest text-foreground">Enable Beem Africa SMS</h4>
+                      <p className="text-[10px] text-muted-foreground">Turn on to deliver SMS notifications using Beem Africa API.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={settings.enableBeemSms} onChange={(e) => setSettings({...settings, enableBeemSms: e.target.checked})} />
+                      <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+
+                  <div className="h-px w-full bg-border/50" />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Beem API Key</label>
+                      <input 
+                        type="text" 
+                        value={settings.beemApiKey || ''} 
+                        onChange={(e) => setSettings({...settings, beemApiKey: e.target.value})}
+                        className="w-full h-11 bg-secondary/30 border border-border rounded-xl px-4 text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-mono" 
+                        placeholder="e.g. 5b11a94200..." 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Beem Secret Key</label>
+                      <input 
+                        type="password" 
+                        value={settings.beemSecretKey || ''} 
+                        onChange={(e) => setSettings({...settings, beemSecretKey: e.target.value})}
+                        className="w-full h-11 bg-secondary/30 border border-border rounded-xl px-4 text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-mono" 
+                        placeholder="••••••••••••••••" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Beem Sender ID (Sender Name)</label>
+                      <input 
+                        type="text" 
+                        value={settings.beemSenderId || ''} 
+                        onChange={(e) => setSettings({...settings, beemSenderId: e.target.value})}
+                        className="w-full h-11 bg-secondary/30 border border-border rounded-xl px-4 text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-mono" 
+                        placeholder="e.g. INFO or approved Sender ID" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Check-in SMS Message Template</label>
+                        <span className="text-[9px] font-bold text-primary font-mono select-all">Variables: {`{plateNumber}, {categoryName}, {siteName}, {driverName}, {checkInTime}, {amountDue}, {ticketCode}`}</span>
+                      </div>
+                      <textarea 
+                        value={settings.smsTemplate || ''} 
+                        onChange={(e) => setSettings({...settings, smsTemplate: e.target.value})}
+                        rows={3}
+                        className="w-full bg-secondary/30 border border-border rounded-2xl p-4 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+                        placeholder="e.g. Nparking: Vehicle {plateNumber} checked in at {siteName}. Code: {ticketCode}." 
+                      />
                     </div>
                   </div>
                 </div>

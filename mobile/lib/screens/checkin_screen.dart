@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../core/parking_i18n.dart';
 import '../core/global_popup.dart';
 import '../providers/vehicle_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/shell_navigation_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
@@ -42,7 +43,17 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final TextEditingController _driverNameController = TextEditingController();
   final TextEditingController _driverPhoneController = TextEditingController();
   final TextEditingController _driverCompanyController = TextEditingController();
+  final TextEditingController _driverEmailController = TextEditingController();
   final TextEditingController _propertiesController = TextEditingController();
+
+  // Local transactional override flags (fallback to AuthProvider defaults)
+  bool? _overridePrint;
+  bool? _overrideEmail;
+  bool? _overrideSms;
+
+  bool _shouldPrint(BuildContext context) => _overridePrint ?? context.read<AuthProvider>().autoPrint;
+  bool _shouldEmail(BuildContext context) => _overrideEmail ?? context.read<AuthProvider>().autoSendEmail;
+  bool _shouldSms(BuildContext context) => _overrideSms ?? context.read<AuthProvider>().autoSendSms;
 
   final GlobalKey<FormState> _checkInFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _registrationFormKey = GlobalKey<FormState>();
@@ -61,6 +72,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _driverNameController.dispose();
     _driverPhoneController.dispose();
     _driverCompanyController.dispose();
+    _driverEmailController.dispose();
     _propertiesController.dispose();
     super.dispose();
   }
@@ -130,6 +142,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       _driverNameController.text = vehicle['ownerName'] ?? '';
       _driverPhoneController.text = vehicle['phone'] ?? '';
       _driverCompanyController.text = vehicle['company'] ?? '';
+      _driverEmailController.text = vehicle['email'] ?? '';
     });
     _plateController.selection = TextSelection.fromPosition(TextPosition(offset: _plateController.text.length));
   }
@@ -382,6 +395,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                 driverName: _driverNameController.text.isNotEmpty ? _driverNameController.text.trim() : owner,
                                 driverPhone: _driverPhoneController.text.isNotEmpty ? _driverPhoneController.text.trim() : _phoneController.text.trim(),
                                 driverCompany: _driverCompanyController.text.isNotEmpty ? _driverCompanyController.text.trim() : _companyController.text.trim(),
+                                driverEmail: _driverEmailController.text.trim(),
+                                autoSendEmail: _shouldEmail(context),
+                                autoSendSms: _shouldSms(context),
                                 propertiesLeft: _propertiesController.text.trim(),
                               );
                               if (!context.mounted) return;
@@ -396,6 +412,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                               _driverNameController.clear();
                               _driverPhoneController.clear();
                               _driverCompanyController.clear();
+                              _driverEmailController.clear();
                               _propertiesController.clear();
                               setState(() {
                                 _isNewVehicle = true;
@@ -403,10 +420,17 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                 _frontImagePath = null;
                                 _plateImagePath = null;
                                 _sideImagePath = null;
+                                _overridePrint = null;
+                                _overrideEmail = null;
+                                _overrideSms = null;
                                 _isLoading = false;
                               });
 
-                              _promptPrintTicket(context, session);
+                              if (_shouldPrint(context)) {
+                                PrintingService.printTicket(session).catchError((err) {
+                                  print('Background auto-print failed: $err');
+                                });
+                              }
                               _showTicketDialog(context, session);
                             } catch (_) {
                               if (!context.mounted) return;
@@ -644,10 +668,53 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     const SizedBox(height: 12),
                     _buildInputField(_driverPhoneController, "Driver Phone Number", LucideIcons.phone, keyboardType: TextInputType.phone),
                     const SizedBox(height: 12),
+                    _buildInputField(_driverEmailController, "Driver Email Address", LucideIcons.mail, keyboardType: TextInputType.emailAddress),
+                    const SizedBox(height: 12),
                     _buildInputField(_driverCompanyController, "Driver Company / Agency", LucideIcons.building),
                     const SizedBox(height: 12),
                     _buildInputField(_propertiesController, "Properties Left in Vehicle", LucideIcons.package, maxLines: 2),
                     const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Glowing Override toggles card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardTheme.color,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white.withOpacity(0.04) 
+                        : Colors.black.withOpacity(0.05),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildOverrideIconToggle(
+                      context,
+                      LucideIcons.messageSquare,
+                      'SMS ALERT',
+                      _shouldSms(context),
+                      (val) => setState(() => _overrideSms = val),
+                    ),
+                    _buildOverrideIconToggle(
+                      context,
+                      LucideIcons.mail,
+                      'EMAIL TICKET',
+                      _shouldEmail(context),
+                      (val) => setState(() => _overrideEmail = val),
+                    ),
+                    _buildOverrideIconToggle(
+                      context,
+                      LucideIcons.printer,
+                      'PRINT QR',
+                      _shouldPrint(context),
+                      (val) => setState(() => _overridePrint = val),
+                    ),
                   ],
                 ),
               ),
@@ -705,6 +772,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             driverName: _driverNameController.text.trim(),
                             driverPhone: _driverPhoneController.text.trim(),
                             driverCompany: _driverCompanyController.text.trim(),
+                            driverEmail: _driverEmailController.text.trim(),
+                            autoSendEmail: _shouldEmail(context),
+                            autoSendSms: _shouldSms(context),
                             propertiesLeft: _propertiesController.text.trim(),
                           );
                           
@@ -713,12 +783,21 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             _driverNameController.clear();
                             _driverPhoneController.clear();
                             _driverCompanyController.clear();
+                            _driverEmailController.clear();
                             _propertiesController.clear();
                             setState(() {
                               _isNewVehicle = true;
                               _selectedVehicle = null;
+                              _overridePrint = null;
+                              _overrideEmail = null;
+                              _overrideSms = null;
                               _isLoading = false;
                             });
+                            if (_shouldPrint(context)) {
+                              PrintingService.printTicket(session).catchError((err) {
+                                print('Background auto-print failed: $err');
+                              });
+                            }
                             _showTicketDialog(context, session);
                           }
                         } catch (_) {
@@ -1218,7 +1297,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           ),
                           onPressed: () async {
                             Navigator.pop(context);
-                            await PrintingService.printTicket(session);
+                            await PrintingService.showPrintDialog(context, session);
                           },
                           child: const Text('Print Ticket', style: TextStyle(color: Colors.white)),
                         ),
@@ -1255,7 +1334,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                await PrintingService.printTicket(session);
+                await PrintingService.showPrintDialog(context, session);
               },
               child: const Text('Yes, Print'),
             ),
@@ -1278,6 +1357,51 @@ class _CheckInScreenState extends State<CheckInScreen> {
               fontSize: 12,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
               color: color ?? (highlight ? AppTheme.primary : AppTheme.textPrimary(context)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverrideIconToggle(
+    BuildContext context,
+    IconData icon,
+    String label,
+    bool isActive,
+    ValueChanged<bool> onToggle,
+  ) {
+    return GestureDetector(
+      onTap: () => onToggle(!isActive),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isActive 
+                  ? AppTheme.primary.withOpacity(0.12) 
+                  : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.02)),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isActive ? AppTheme.primary : Colors.transparent,
+                width: 1.5,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: isActive ? AppTheme.primary : AppTheme.textSecondary(context).withOpacity(0.5),
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: isActive ? AppTheme.primary : AppTheme.textSecondary(context),
             ),
           ),
         ],

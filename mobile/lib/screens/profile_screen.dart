@@ -328,6 +328,42 @@ class ProfileScreen extends StatelessWidget {
                       color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
                       height: 1,
                     ),
+                    _buildSwitchTile(
+                      context,
+                      LucideIcons.printer,
+                      'Auto-Print Entry Ticket',
+                      'Instantly print QR slip on check-in',
+                      auth.autoPrint,
+                      (val) => auth.updatePreferences(autoPrint: val),
+                    ),
+                    Divider(
+                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                      height: 1,
+                    ),
+                    _buildSwitchTile(
+                      context,
+                      LucideIcons.mail,
+                      'Auto-Send Email Ticket',
+                      'Deliver HTML receipts to drivers',
+                      auth.autoSendEmail,
+                      (val) => auth.updatePreferences(autoSendEmail: val),
+                    ),
+                    Divider(
+                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                      height: 1,
+                    ),
+                    _buildSwitchTile(
+                      context,
+                      LucideIcons.messageSquare,
+                      'Auto-Send Beem SMS',
+                      'Send dynamic details via Beem Africa',
+                      auth.autoSendSms,
+                      (val) => auth.updatePreferences(autoSendSms: val),
+                    ),
+                    Divider(
+                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                      height: 1,
+                    ),
                     _buildActionTile(
                       context,
                       LucideIcons.moon,
@@ -465,6 +501,48 @@ class ProfileScreen extends StatelessWidget {
         size: 18,
       ),
       onTap: onTap,
+    );
+  }
+
+  Widget _buildSwitchTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: AppTheme.textPrimary(context), size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: AppTheme.textPrimary(context),
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: AppTheme.textSecondary(context),
+          fontSize: 12,
+        ),
+      ),
+      trailing: Switch.adaptive(
+        value: value,
+        activeColor: AppTheme.primary,
+        onChanged: onChanged,
+      ),
     );
   }
 

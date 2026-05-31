@@ -27,6 +27,7 @@ export class VehicleController {
       categoryName: string;
       ownerName?: string;
       phone?: string;
+      email?: string;
       company?: string;
       color?: string;
       makeModel?: string;
@@ -87,6 +88,7 @@ export class VehicleController {
       ownerName?: string;
       categoryName?: string;
       phone?: string;
+      email?: string;
       company?: string;
       color?: string;
       makeModel?: string;

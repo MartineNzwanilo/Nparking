@@ -53,8 +53,13 @@ export class AppController {
         enableWhatsappAlerts: data.enableWhatsappAlerts,
         twilioSmsNum: data.twilioSmsNum,
         enableSmsAlerts: data.enableSmsAlerts,
+        enableBeemSms: data.enableBeemSms,
+        beemApiKey: data.beemApiKey,
+        beemSecretKey: data.beemSecretKey,
+        beemSenderId: data.beemSenderId,
         overstayTimeLimit: data.overstayTimeLimit,
         overstayFineAmount: data.overstayFineAmount ? parseFloat(data.overstayFineAmount) : undefined,
+        smsTemplate: data.smsTemplate,
       },
       create: {
         id: 'global',
@@ -69,8 +74,13 @@ export class AppController {
         enableWhatsappAlerts: data.enableWhatsappAlerts,
         twilioSmsNum: data.twilioSmsNum,
         enableSmsAlerts: data.enableSmsAlerts,
+        enableBeemSms: data.enableBeemSms ?? false,
+        beemApiKey: data.beemApiKey,
+        beemSecretKey: data.beemSecretKey,
+        beemSenderId: data.beemSenderId ?? 'INFO',
         overstayTimeLimit: data.overstayTimeLimit ?? '08:00:00',
         overstayFineAmount: data.overstayFineAmount ? parseFloat(data.overstayFineAmount) : 5000,
+        smsTemplate: data.smsTemplate ?? "Nparking: Vehicle {plateNumber} ({categoryName}) checked in at {siteName} by {driverName}. Date: {checkInTime}. Fee: TZS {amountDue}. Code: {ticketCode}. Thank you!",
       },
     });
   }

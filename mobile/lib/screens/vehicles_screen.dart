@@ -8,6 +8,8 @@ import '../core/global_popup.dart';
 import '../widgets/complex_animations.dart';
 import '../core/checkout_helper.dart';
 import '../providers/vehicle_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/printing_service.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -66,6 +68,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final plateController = TextEditingController(text: editingVehicle?['plateNumber']);
     final ownerController = TextEditingController(text: editingVehicle?['ownerName']);
     final phoneController = TextEditingController(text: editingVehicle?['phone']);
+    final emailController = TextEditingController(text: editingVehicle?['email']);
     final companyController = TextEditingController(text: editingVehicle?['company']);
     final colorController = TextEditingController(text: editingVehicle?['color']);
     final makeController = TextEditingController(text: editingVehicle?['makeModel']);
@@ -365,6 +368,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
+                                  _buildPremiumInputField(
+                                    emailController,
+                                    context.t.tr('emailAddress') ?? 'Email Address (Optional)',
+                                    LucideIcons.mail,
+                                    keyboardType: TextInputType.emailAddress,
+                                  ),
+                                  const SizedBox(height: 12),
                                   _buildPremiumInputField(companyController, context.t.tr('companyOrganization'), LucideIcons.building),
                                   const SizedBox(height: 20),
 
@@ -444,6 +454,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                           categoryName: selectedCategory,
                                           ownerName: ownerController.text.trim(),
                                           phone: phoneController.text.trim(),
+                                          email: emailController.text.trim(),
                                           company: companyController.text.trim(),
                                           color: colorController.text.trim(),
                                           makeModel: makeController.text.trim(),
@@ -465,6 +476,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                           selectedCategory,
                                           ownerController.text.trim(),
                                           phone: phoneController.text.trim(),
+                                          email: emailController.text.trim(),
                                           company: companyController.text.trim(),
                                           color: colorController.text.trim(),
                                           makeModel: makeController.text.trim(),
@@ -510,6 +522,322 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           opacity: anim1,
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.95, end: 1.0).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  // ─── Dedicated check-in dialog for the vehicles screen ─────────────────
+  void _showVehiclesCheckInDialog(BuildContext context, Map<String, dynamic> vehicle) {
+    final propertiesController = TextEditingController();
+    final emailController = TextEditingController(text: vehicle['email'] ?? '');
+    bool? overrideSms;
+    bool? overrideEmail;
+    bool? overridePrint;
+
+    final auth = context.read<AuthProvider>();
+    bool initSms = auth.autoSendSms;
+    bool initEmail = auth.autoSendEmail;
+    bool initPrint = auth.autoPrint;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'dismiss',
+      barrierColor: Colors.black.withOpacity(isDark ? 0.85 : 0.65),
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (context, anim1, anim2) {
+        return StatefulBuilder(
+          builder: (context, setDs) {
+            bool sms = overrideSms ?? initSms;
+            bool email = overrideEmail ?? initEmail;
+            bool autoPrint = overridePrint ?? initPrint;
+
+            Widget _toggleChip(IconData icon, String label, bool active, ValueChanged<bool> onChanged) {
+              return GestureDetector(
+                onTap: () => onChanged(!active),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? AppTheme.primary.withOpacity(0.18)
+                        : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04)),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: active ? AppTheme.primary.withOpacity(0.6) : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: active ? AppTheme.primary : (isDark ? Colors.white38 : Colors.black38), size: 20),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: active ? AppTheme.primary : (isDark ? Colors.white38 : Colors.black38),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return AnimatedPadding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.92,
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: AppTheme.primary.withOpacity(0.2),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          blurRadius: 40,
+                          spreadRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(LucideIcons.logIn, color: AppTheme.primary, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      context.t.tr('checkIn'),
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary(context),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      vehicle['plateNumber'] ?? '',
+                                      style: TextStyle(
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(LucideIcons.x, color: isDark ? Colors.white54 : Colors.black45, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Body
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Properties Left
+                              Text(
+                                'PROPERTIES LEFT IN VEHICLE',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary(context).withOpacity(0.6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: propertiesController,
+                                maxLines: 2,
+                                style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'e.g. Laptop bag, umbrella, documents…',
+                                  hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26, fontSize: 12),
+                                  prefixIcon: Icon(LucideIcons.package, color: isDark ? Colors.white38 : Colors.black38, size: 18),
+                                  filled: true,
+                                  fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide(
+                                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Email for ticket
+                              Text(
+                                'SEND TICKET TO EMAIL',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary(context).withOpacity(0.6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'driver@example.com (optional)',
+                                  hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26, fontSize: 12),
+                                  prefixIcon: Icon(LucideIcons.mail, color: isDark ? Colors.white38 : Colors.black38, size: 18),
+                                  filled: true,
+                                  fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide(
+                                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Notification toggles
+                              Text(
+                                'NOTIFICATIONS',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary(context).withOpacity(0.6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _toggleChip(LucideIcons.messageSquare, 'SMS', sms, (val) => setDs(() => overrideSms = val)),
+                                  _toggleChip(LucideIcons.mail, 'EMAIL', email, (val) => setDs(() => overrideEmail = val)),
+                                  _toggleChip(LucideIcons.printer, 'PRINT', autoPrint, (val) => setDs(() => overridePrint = val)),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+
+                              // Confirm button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  ),
+                                  icon: const Icon(LucideIcons.logIn, size: 18),
+                                  label: Text(
+                                    context.t.tr('checkIn'),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+                                    final provider = context.read<VehicleProvider>();
+                                    final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
+                                    final amount = (vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
+                                    try {
+                                      final session = await provider.checkInVehicle(
+                                        vehicle['plateNumber'],
+                                        category,
+                                        amount,
+                                        driverEmail: emailController.text.trim(),
+                                        autoSendEmail: email,
+                                        autoSendSms: sms,
+                                        propertiesLeft: propertiesController.text.trim(),
+                                      );
+                                      if (context.mounted) {
+                                        if (autoPrint) {
+                                          PrintingService.printTicket(session).catchError((err) {
+                                            print('Auto-print failed: \$err');
+                                          });
+                                        }
+                                        GlobalPopup.showSuccess(
+                                          context,
+                                          context.t.tr('vehicleCheckedIn', {'plate': '${vehicle['plateNumber']}'}),
+                                          title: context.t.tr('checkInSuccess'),
+                                        );
+                                      }
+                                    } catch (_) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: anim1,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+              CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
+            ),
             child: child,
           ),
         );
@@ -1189,26 +1517,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          GlobalPopup.showCheckInPrompt(context, vehicle['plateNumber'], () async {
-                            try {
-                              final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
-                              final amount = (vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
-                              await provider.checkInVehicle(vehicle['plateNumber'], category, amount);
-                              if (context.mounted) {
-                                GlobalPopup.showSuccess(
-                                  context,
-                                  context.t.tr('vehicleCheckedIn', {'plate': '${vehicle['plateNumber']}'}),
-                                  title: context.t.tr('checkInSuccess'),
-                                );
-                              }
-                            } catch (_) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
-                                );
-                              }
-                            }
-                          });
+                          _showVehiclesCheckInDialog(context, vehicle);
                         }
                       },
                     ),
@@ -1475,30 +1784,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          GlobalPopup.showCheckInPrompt(
-                            context,
-                            vehicle['plateNumber'],
-                            () async {
-                              try {
-                                final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
-                                final amount = (vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
-                                await provider.checkInVehicle(vehicle['plateNumber'], category, amount);
-                                if (context.mounted) {
-                                  GlobalPopup.showSuccess(
-                                    context,
-                                    context.t.tr('vehicleCheckedIn', {'plate': '${vehicle['plateNumber']}'}),
-                                    title: context.t.tr('checkInSuccess'),
-                                  );
-                                }
-                              } catch (_) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
-                                  );
-                                }
-                              }
-                            },
-                          );
+                          _showVehiclesCheckInDialog(context, vehicle);
                         }
                       },
                     ),

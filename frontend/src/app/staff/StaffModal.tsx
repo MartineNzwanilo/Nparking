@@ -19,6 +19,9 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("WATCHMAN");
   const [siteId, setSiteId] = useState("");
+  const [autoPrint, setAutoPrint] = useState(true);
+  const [autoSendEmail, setAutoSendEmail] = useState(false);
+  const [autoSendSms, setAutoSendSms] = useState(false);
 
   const { data: sites } = useQuery({
     queryKey: ["parking-sites"],
@@ -37,6 +40,9 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
       setPassword("");
       setRole(staff?.role || "WATCHMAN");
       setSiteId(staff?.siteId || "");
+      setAutoPrint(staff?.autoPrint !== undefined ? staff.autoPrint : true);
+      setAutoSendEmail(staff?.autoSendEmail !== undefined ? staff.autoSendEmail : false);
+      setAutoSendSms(staff?.autoSendSms !== undefined ? staff.autoSendSms : false);
     }
   }, [isOpen, staff]);
 
@@ -64,7 +70,14 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
       return toast.error("Please fill in all required fields");
     }
 
-    const payload: any = { name: name.trim(), phone: phone.trim(), role };
+    const payload: any = {
+      name: name.trim(),
+      phone: phone.trim(),
+      role,
+      autoPrint,
+      autoSendEmail,
+      autoSendSms,
+    };
     if (email.trim()) payload.email = email.trim();
     if (password) payload.password = password;
     if (siteId) payload.siteId = siteId;
@@ -178,6 +191,72 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
                     </select>
                   </div>
                 </div>
+
+                {role === "WATCHMAN" && (
+                  <div className="border border-border/60 bg-secondary/5 p-5 rounded-2xl flex flex-col gap-4 mt-2">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Watchman Shift Defaults</h3>
+                    
+                    <div className="flex items-center justify-between animate-fadeIn">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-bold text-foreground">Auto-Print Entry Ticket</span>
+                        <span className="text-[10px] text-muted-foreground">Instantly print QR slip on check-in</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAutoPrint(!autoPrint)}
+                        className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 focus:outline-none ${
+                          autoPrint ? "bg-primary" : "bg-muted"
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                            autoPrint ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between animate-fadeIn">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-bold text-foreground">Auto-Send Email Ticket</span>
+                        <span className="text-[10px] text-muted-foreground">Deliver HTML receipts to drivers</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAutoSendEmail(!autoSendEmail)}
+                        className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 focus:outline-none ${
+                          autoSendEmail ? "bg-primary" : "bg-muted"
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                            autoSendEmail ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between animate-fadeIn">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-bold text-foreground">Auto-Send Beem SMS</span>
+                        <span className="text-[10px] text-muted-foreground">Send dynamic details via unverified INFO</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAutoSendSms(!autoSendSms)}
+                        className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 focus:outline-none ${
+                          autoSendSms ? "bg-primary" : "bg-muted"
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                            autoSendSms ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 border-t border-border/50 bg-secondary/10 flex justify-end gap-3">

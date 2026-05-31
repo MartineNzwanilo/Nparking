@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model ParkingSite {
@@ -24,17 +24,20 @@ model ParkingSite {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  phone       String   @unique
-  email       String?  @unique
-  password    String
-  name        String
-  role        String   @default("WATCHMAN")
-  isActive    Boolean  @default(true)
-  siteId      String?
-  site        ParkingSite? @relation(fields: [siteId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  phone         String   @unique
+  email         String?  @unique
+  password      String
+  name          String
+  role          String   @default("WATCHMAN")
+  isActive      Boolean  @default(true)
+  siteId        String?
+  site          ParkingSite? @relation(fields: [siteId], references: [id])
+  autoPrint     Boolean  @default(true)
+  autoSendEmail Boolean  @default(false)
+  autoSendSms   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   sessions    ParkingSession[]
   accessLogs  AccessLog[]
@@ -62,8 +65,13 @@ model SystemSettings {
   enableWhatsappAlerts Boolean  @default(false)
   twilioSmsNum         String?
   enableSmsAlerts      Boolean  @default(false)
+  enableBeemSms        Boolean  @default(false)
+  beemApiKey           String?
+  beemSecretKey        String?
+  beemSenderId         String?  @default("INFO")
   overstayTimeLimit    String   @default("08:00:00") // Admin setting for checkout deadline
   overstayFineAmount   Float    @default(5000)       // Admin setting for overstay penalty
+  smsTemplate          String   @default("Nparking: Vehicle {plateNumber} ({categoryName}) checked in at {siteName} by {driverName}. Date: {checkInTime}. Fee: TZS {amountDue}. Code: {ticketCode}. Thank you!")
   updatedAt            DateTime @updatedAt
 }
 
@@ -83,6 +91,7 @@ model Vehicle {
   category    VehicleCategory @relation(fields: [categoryId], references: [id])
   ownerName   String?
   phone       String?
+  email       String?
   company     String?
   color       String?
   makeModel   String?
@@ -111,7 +120,10 @@ model ParkingSession {
   driverName    String?
   driverPhone   String?
   driverCompany String?
+  driverEmail   String?
   propertiesLeft String?
+  smsSent       Boolean  @default(false)
+  emailSent     Boolean  @default(false)
   
   // Overstay & Anomaly tracking
   fineAmount          Float?

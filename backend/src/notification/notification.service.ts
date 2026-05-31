@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
 import { Twilio } from 'twilio';
+import * as https from 'https';
 
 @Injectable()
 export class NotificationService {
@@ -89,12 +90,66 @@ export class NotificationService {
     }
   }
 
+  /** Reliable HTTPS POST using Node's built-in https module (no fetch TLS issues) */
+  private httpsPost(url: string, body: string, headers: Record<string, string>): Promise<{ status: number; data: string }> {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(url);
+      const options = {
+        hostname: parsed.hostname,
+        port: parsed.port || 443,
+        path: parsed.pathname + parsed.search,
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Length': Buffer.byteLength(body),
+        },
+      };
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, data }));
+      });
+      req.on('error', reject);
+      req.setTimeout(10000, () => { req.destroy(); reject(new Error('HTTPS request timed out')); });
+      req.write(body);
+      req.end();
+    });
+  }
+
   async sendSms(to: string, message: string) {
     try {
       const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
       
+      // 1. BEEM AFRICA FLOW
+      if (settings?.enableBeemSms && settings.beemApiKey && settings.beemSecretKey) {
+        const cleanTo = to.replace(/[\s-]/g, '').replace(/^\+/, '');
+
+        const payload = JSON.stringify({
+          source_addr: settings.beemSenderId || 'INFO',
+          schedule_time: '',
+          message: message,
+          recipients: [{ recipient_id: 1, dest_addr: cleanTo }],
+        });
+
+        const authHeader = 'Basic ' + Buffer.from(`${settings.beemApiKey}:${settings.beemSecretKey}`).toString('base64');
+
+        const { status, data } = await this.httpsPost(
+          'https://openapi.beem.africa/v1/send',
+          payload,
+          { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        );
+
+        if (status < 200 || status >= 300) {
+          throw new Error(`Beem API returned status ${status}: ${data}`);
+        }
+
+        this.logger.log(`SMS sent to ${to} via Beem Africa. Response: ${data}`);
+        return true;
+      }
+
+      // 2. TWILIO SMS FLOW
       if (!settings?.enableSmsAlerts || !settings.twilioAccountSid || !settings.twilioAuthToken || !settings.twilioSmsNum) {
-        this.logger.warn('SMS alerts disabled or Twilio SMS not configured. Skipping SMS message.');
+        this.logger.warn('SMS alerts disabled, neither Twilio nor Beem Africa is fully configured. Skipping SMS.');
         return false;
       }
 
@@ -123,7 +178,7 @@ export class NotificationService {
 
       await client.messages.create(payload);
 
-      this.logger.log(`SMS sent successfully to ${to}`);
+      this.logger.log(`SMS sent successfully to ${to} via Twilio`);
       return true;
     } catch (error) {
       this.logger.error(`Failed to send SMS to ${to}: ${error.message}`);

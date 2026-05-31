@@ -30,11 +30,17 @@ export class ReportService {
       where: paymentWhere
     });
 
-    // Calculate Total Revenue
+    // Calculate Total Revenue (payments collected)
     const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate Total Fines charged in the period
+    const totalFines = sessions.reduce((sum, s) => sum + (s.fineAmount ?? 0), 0);
 
     // Calculate Total Vehicles
     const totalVehicles = sessions.length;
+
+    // Overstay count
+    const overstayCount = sessions.filter(s => (s.fineAmount ?? 0) > 0).length;
 
     // Calculate Avg Session Duration
     let totalDurationMs = 0;
@@ -46,33 +52,41 @@ export class ReportService {
       }
     });
     
-    // Default to 0 if no completed sessions
     const avgDurationHours = completedSessions > 0 ? (totalDurationMs / completedSessions / (1000 * 60 * 60)) : 0;
     const avgHours = Math.floor(avgDurationHours);
     const avgMinutes = Math.floor((avgDurationHours - avgHours) * 60);
     const avgSessionDuration = `${avgHours}h ${avgMinutes}m`;
 
-    // Calculate Revenue Over Time (Daily)
-    const revenueMap: Record<string, number> = {};
+    // Calculate Revenue Over Time (Daily) — includes fines
+    const revenueMap: Record<string, { parking: number; fines: number }> = {};
     
-    // Initialize last 30 days with 0 to ensure the chart looks continuous
     for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
-        revenueMap[dateStr] = 0;
+        revenueMap[dateStr] = { parking: 0, fines: 0 };
     }
 
     payments.forEach(p => {
       const dateStr = p.collectedAt.toISOString().split('T')[0];
       if (revenueMap[dateStr] !== undefined) {
-        revenueMap[dateStr] += p.amount;
+        revenueMap[dateStr].parking += p.amount;
       }
     });
 
-    const revenueOverTime = Object.entries(revenueMap).map(([date, revenue]) => ({
+    sessions.forEach(s => {
+      if (s.fineAmount && s.fineAmount > 0) {
+        const dateStr = (s.checkOut ?? s.checkIn).toISOString().split('T')[0];
+        if (revenueMap[dateStr] !== undefined) {
+          revenueMap[dateStr].fines += s.fineAmount;
+        }
+      }
+    });
+
+    const revenueOverTime = Object.entries(revenueMap).map(([date, d]) => ({
       date,
-      revenue
+      revenue: d.parking,
+      fines: d.fines,
     }));
 
     // Calculate Vehicle Distribution
@@ -90,6 +104,8 @@ export class ReportService {
     return {
       keyMetrics: {
         totalRevenue,
+        totalFines,
+        overstayCount,
         totalVehicles,
         avgSessionDuration
       },
@@ -123,6 +139,15 @@ export class ReportService {
     });
     const todaysRevenue = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
 
+    // Today's Fines
+    const todaysFineWhere: any = { checkIn: { gte: today }, fineAmount: { gt: 0 } };
+    if (siteId && siteId !== 'all') todaysFineWhere.siteId = siteId;
+    const todaysFinesSessions = await this.prisma.parkingSession.findMany({
+      where: todaysFineWhere,
+      select: { fineAmount: true },
+    });
+    const todaysFines = todaysFinesSessions.reduce((sum, s) => sum + (s.fineAmount ?? 0), 0);
+
     // Active Staff
     const activeStaffCount = await this.prisma.user.count({
       where: userWhere,
@@ -151,6 +176,7 @@ export class ReportService {
       plateNumber: s.vehicle.plateNumber,
       watchmanName: s.watchman.name,
       amountDue: s.amountDue,
+      fineAmount: s.fineAmount ?? 0,
     }));
 
     // Hourly Traffic (Today)
@@ -176,6 +202,7 @@ export class ReportService {
     return {
       activeVehicles: activeVehiclesCount,
       todaysRevenue,
+      todaysFines,
       activeStaff: activeStaffCount,
       securityAlerts: securityAlertsCount,
       recentActivity,
@@ -202,6 +229,14 @@ export class ReportService {
       orderBy: { collectedAt: 'asc' },
     });
 
+    // Also fetch fines in this period
+    const fineWhere: any = { checkIn: range, fineAmount: { gt: 0 } };
+    if (siteId && siteId !== 'all') fineWhere.siteId = siteId;
+    const fineSessions = await this.prisma.parkingSession.findMany({
+      where: fineWhere,
+      select: { fineAmount: true },
+    });
+
     const rows = payments.map(p => ({
       date: p.collectedAt.toISOString().split('T')[0],
       time: p.collectedAt.toTimeString().slice(0, 5),
@@ -216,8 +251,20 @@ export class ReportService {
     const totalRevenue = rows.reduce((s, r) => s + r.amount, 0);
     const cashRevenue = rows.filter(r => r.method === 'CASH').reduce((s, r) => s + r.amount, 0);
     const mobileRevenue = rows.filter(r => r.method === 'MOBILE_MONEY').reduce((s, r) => s + r.amount, 0);
+    const totalFines = fineSessions.reduce((s, r) => s + (r.fineAmount ?? 0), 0);
+    const grandTotal = totalRevenue + totalFines;
 
-    return { rows, summary: { totalRevenue, cashRevenue, mobileRevenue, totalTransactions: rows.length } };
+    return {
+      rows,
+      summary: {
+        totalRevenue,
+        totalFines,
+        grandTotal,
+        cashRevenue,
+        mobileRevenue,
+        totalTransactions: rows.length,
+      },
+    };
   }
 
   // ─── 2. Parking Sessions Report ──────────────────────────────────────────────
@@ -253,16 +300,30 @@ export class ReportService {
         duration: durationStr,
         status: s.status,
         amountDue: s.amountDue,
+        fineAmount: s.fineAmount ?? 0,
         paid: s.payment ? 'Yes' : 'No',
         paymentMethod: s.payment?.method ?? '—',
       };
     });
 
     const totalSessions = rows.length;
-    const totalRevenue = sessions.reduce((s, r) => s + r.amountDue, 0);
+    const totalParkingRevenue = sessions.reduce((s, r) => s + r.amountDue, 0);
+    const totalFines = sessions.reduce((s, r) => s + (r.fineAmount ?? 0), 0);
+    const totalRevenue = totalParkingRevenue + totalFines;
     const stillInside = sessions.filter(s => !s.checkOut).length;
+    const overstayCount = sessions.filter(s => (s.fineAmount ?? 0) > 0).length;
 
-    return { rows, summary: { totalSessions, totalRevenue, stillInside } };
+    return {
+      rows,
+      summary: {
+        totalSessions,
+        totalParkingRevenue,
+        totalFines,
+        totalRevenue,
+        overstayCount,
+        stillInside,
+      },
+    };
   }
 
   // ─── 3. Staff Performance Report ─────────────────────────────────────────────
@@ -276,13 +337,14 @@ export class ReportService {
       include: { watchman: true, payment: true },
     });
 
-    const staffMap: Record<string, { name: string; sessions: number; revenue: number; checkouts: number }> = {};
+    const staffMap: Record<string, { name: string; sessions: number; revenue: number; fines: number; checkouts: number }> = {};
 
     sessions.forEach(s => {
       const id = s.watchmanId;
-      if (!staffMap[id]) staffMap[id] = { name: s.watchman?.name ?? '—', sessions: 0, revenue: 0, checkouts: 0 };
+      if (!staffMap[id]) staffMap[id] = { name: s.watchman?.name ?? '—', sessions: 0, revenue: 0, fines: 0, checkouts: 0 };
       staffMap[id].sessions++;
       if (s.payment) staffMap[id].revenue += s.payment.amount;
+      if (s.fineAmount && s.fineAmount > 0) staffMap[id].fines += s.fineAmount;
       if (s.checkOut) staffMap[id].checkouts++;
     });
 
@@ -291,9 +353,17 @@ export class ReportService {
       totalSessions: r.sessions,
       completedCheckouts: r.checkouts,
       totalRevenue: r.revenue,
+      totalFinesCharged: r.fines,
     }));
 
-    return { rows, summary: { totalStaff: rows.length, totalRevenue: rows.reduce((s, r) => s + r.totalRevenue, 0) } };
+    return {
+      rows,
+      summary: {
+        totalStaff: rows.length,
+        totalRevenue: rows.reduce((s, r) => s + r.totalRevenue, 0),
+        totalFinesCharged: rows.reduce((s, r) => s + r.totalFinesCharged, 0),
+      },
+    };
   }
 
   // ─── 4. Vehicle History Report ────────────────────────────────────────────────
@@ -316,11 +386,19 @@ export class ReportService {
       checkIn: s.checkIn.toISOString().replace('T', ' ').slice(0, 16),
       checkOut: s.checkOut ? s.checkOut.toISOString().replace('T', ' ').slice(0, 16) : 'Still Inside',
       amountPaid: s.payment?.amount ?? 0,
+      fineAmount: s.fineAmount ?? 0,
       method: s.payment?.method ?? '—',
       blacklisted: s.vehicle.isBlacklisted ? 'YES' : 'No',
     }));
 
-    return { rows, summary: { totalVisits: rows.length, totalPaid: rows.reduce((s, r) => s + r.amountPaid, 0) } };
+    return {
+      rows,
+      summary: {
+        totalVisits: rows.length,
+        totalPaid: rows.reduce((s, r) => s + r.amountPaid, 0),
+        totalFines: rows.reduce((s, r) => s + r.fineAmount, 0),
+      },
+    };
   }
 
   // ─── 5. Site Utilization Report ───────────────────────────────────────────────
@@ -334,13 +412,14 @@ export class ReportService {
       include: { site: true, vehicle: { include: { category: true } }, payment: true },
     });
 
-    const siteMap: Record<string, { name: string; vehicles: number; revenue: number; categories: Record<string, number> }> = {};
+    const siteMap: Record<string, { name: string; vehicles: number; revenue: number; fines: number; categories: Record<string, number> }> = {};
 
     sessions.forEach(s => {
       const id = s.siteId;
-      if (!siteMap[id]) siteMap[id] = { name: s.site?.name ?? '—', vehicles: 0, revenue: 0, categories: {} };
+      if (!siteMap[id]) siteMap[id] = { name: s.site?.name ?? '—', vehicles: 0, revenue: 0, fines: 0, categories: {} };
       siteMap[id].vehicles++;
       if (s.payment) siteMap[id].revenue += s.payment.amount;
+      if (s.fineAmount && s.fineAmount > 0) siteMap[id].fines += s.fineAmount;
       const cat = s.vehicle.category?.name ?? 'Unknown';
       siteMap[id].categories[cat] = (siteMap[id].categories[cat] || 0) + 1;
     });
@@ -349,11 +428,20 @@ export class ReportService {
       site: r.name,
       totalVehicles: r.vehicles,
       totalRevenue: r.revenue,
+      totalFines: r.fines,
       topCategory: Object.entries(r.categories).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—',
       categoryBreakdown: Object.entries(r.categories).map(([k, v]) => `${k}: ${v}`).join(', '),
     }));
 
-    return { rows, summary: { totalSites: rows.length, totalVehicles: rows.reduce((s, r) => s + r.totalVehicles, 0), totalRevenue: rows.reduce((s, r) => s + r.totalRevenue, 0) } };
+    return {
+      rows,
+      summary: {
+        totalSites: rows.length,
+        totalVehicles: rows.reduce((s, r) => s + r.totalVehicles, 0),
+        totalRevenue: rows.reduce((s, r) => s + r.totalRevenue, 0),
+        totalFines: rows.reduce((s, r) => s + r.totalFines, 0),
+      },
+    };
   }
 
   // ─── 6. Security / Blacklist Report ──────────────────────────────────────────
@@ -379,6 +467,66 @@ export class ReportService {
       status: s.checkOut ? 'EXITED' : 'STILL INSIDE',
     }));
 
-    return { rows, summary: { totalIncidents: rows.length, stillInside: rows.filter(r => r.status === 'STILL INSIDE').length } };
+    return {
+      rows,
+      summary: {
+        totalIncidents: rows.length,
+        stillInside: rows.filter(r => r.status === 'STILL INSIDE').length,
+      },
+    };
+  }
+
+  // ─── 7. Overstay / Fines Report ───────────────────────────────────────────────
+  async getOverstayReport(startDate?: string, endDate?: string, siteId?: string) {
+    const range = this.dateRange(startDate, endDate);
+    const where: any = { checkIn: range, fineAmount: { gt: 0 } };
+    if (siteId && siteId !== 'all') where.siteId = siteId;
+
+    const sessions = await this.prisma.parkingSession.findMany({
+      where,
+      include: {
+        vehicle: { include: { category: true } },
+        site: true,
+        watchman: true,
+        payment: true,
+      },
+      orderBy: { checkIn: 'desc' },
+    });
+
+    const rows = sessions.map(s => {
+      const durationMs = s.checkOut ? s.checkOut.getTime() - s.checkIn.getTime() : null;
+      const durationHrs = durationMs ? durationMs / (1000 * 60 * 60) : null;
+      const durationStr = durationHrs
+        ? `${Math.floor(durationHrs)}h ${Math.floor((durationHrs % 1) * 60)}m`
+        : 'Still Inside';
+      return {
+        checkIn: s.checkIn.toISOString().replace('T', ' ').slice(0, 16),
+        checkOut: s.checkOut ? s.checkOut.toISOString().replace('T', ' ').slice(0, 16) : '—',
+        plate: s.vehicle.plateNumber,
+        vehicleType: s.vehicle.category?.name ?? '—',
+        site: s.site?.name ?? '—',
+        watchman: s.watchman?.name ?? '—',
+        duration: durationStr,
+        parkingCharge: s.amountDue,
+        fineAmount: s.fineAmount ?? 0,
+        totalCharged: s.amountDue + (s.fineAmount ?? 0),
+        paid: s.payment ? 'Yes' : 'No',
+        watchmanForgot: s.watchmanForgot ? 'YES' : 'No',
+      };
+    });
+
+    const totalFines = rows.reduce((s, r) => s + r.fineAmount, 0);
+    const totalCharged = rows.reduce((s, r) => s + r.totalCharged, 0);
+    const watchmanForgotCount = sessions.filter(s => s.watchmanForgot).length;
+
+    return {
+      rows,
+      summary: {
+        totalOverstays: rows.length,
+        totalFines,
+        totalCharged,
+        watchmanForgotCount,
+      },
+    };
   }
 }

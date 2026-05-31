@@ -65,6 +65,7 @@ class VehicleProvider extends ChangeNotifier {
     String categoryName, 
     String ownerName, {
     String? phone,
+    String? email,
     String? company,
     String? color,
     String? makeModel,
@@ -91,6 +92,7 @@ class VehicleProvider extends ChangeNotifier {
         'categoryName': categoryName,
         'ownerName': ownerName,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (email != null && email.isNotEmpty) 'email': email,
         if (company != null && company.isNotEmpty) 'company': company,
         if (color != null && color.isNotEmpty) 'color': color,
         if (makeModel != null && makeModel.isNotEmpty) 'makeModel': makeModel,
@@ -125,6 +127,7 @@ class VehicleProvider extends ChangeNotifier {
     String? categoryName, 
     String? ownerName, 
     String? phone,
+    String? email,
     String? company,
     String? color,
     String? makeModel,
@@ -150,6 +153,7 @@ class VehicleProvider extends ChangeNotifier {
         if (categoryName != null) 'categoryName': categoryName,
         if (ownerName != null) 'ownerName': ownerName,
         if (phone != null) 'phone': phone,
+        if (email != null) 'email': email,
         if (company != null) 'company': company,
         if (color != null) 'color': color,
         if (makeModel != null) 'makeModel': makeModel,
@@ -216,6 +220,9 @@ class VehicleProvider extends ChangeNotifier {
     String? driverName,
     String? driverPhone,
     String? driverCompany,
+    String? driverEmail,
+    bool? autoSendEmail,
+    bool? autoSendSms,
     String? propertiesLeft,
   }) async {
     try {
@@ -226,6 +233,9 @@ class VehicleProvider extends ChangeNotifier {
         if (driverName != null && driverName.isNotEmpty) 'driverName': driverName,
         if (driverPhone != null && driverPhone.isNotEmpty) 'driverPhone': driverPhone,
         if (driverCompany != null && driverCompany.isNotEmpty) 'driverCompany': driverCompany,
+        if (driverEmail != null && driverEmail.isNotEmpty) 'driverEmail': driverEmail,
+        if (autoSendEmail != null) 'autoSendEmail': autoSendEmail,
+        if (autoSendSms != null) 'autoSendSms': autoSendSms,
         if (propertiesLeft != null && propertiesLeft.isNotEmpty) 'propertiesLeft': propertiesLeft,
       };
 

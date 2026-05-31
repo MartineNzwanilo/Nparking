@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useQuery } from "@tanstack/react-query"
 import { format, subDays } from "date-fns"
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, BarChart, Bar
 } from "recharts"
 import { useTheme } from "next-themes"
 
@@ -25,23 +25,39 @@ const REPORT_TABS = [
   { id: 'overview',        label: 'Overview',          icon: 'combo-chart',      endpoint: null },
   { id: 'daily-revenue',   label: 'Daily Revenue',     icon: 'money-bag',        endpoint: 'daily-revenue' },
   { id: 'sessions',        label: 'Sessions',          icon: 'car',              endpoint: 'sessions' },
+  { id: 'overstay',        label: 'Overstay & Fines',  icon: 'warning-shield',   endpoint: 'overstay' },
   { id: 'staff',           label: 'Staff Performance', icon: 'user-male-circle', endpoint: 'staff-performance' },
   { id: 'vehicle-history', label: 'Vehicle History',   icon: 'road',             endpoint: 'vehicle-history' },
   { id: 'site-utilization',label: 'Site Utilization',  icon: 'parking',          endpoint: 'site-utilization' },
   { id: 'security',        label: 'Security',          icon: 'security-camera',  endpoint: 'security' },
 ]
 
-// ─── Reusable Components ──────────────────────────────────────────────────────
-function ExportBar({ onPDF, onCSV, isExporting, rowCount }: { onPDF: () => void; onCSV: () => void; isExporting: boolean; rowCount: number }) {
+// ─── Currency columns ─────────────────────────────────────────────────────────
+const CURRENCY_COLS = new Set([
+  'amount', 'amountDue', 'amountPaid', 'totalRevenue', 'fineAmount',
+  'totalCharged', 'parkingCharge', 'totalFinesCharged', 'totalFines', 'totalPaid',
+  'totalParkingRevenue', 'grandTotal', 'cashRevenue', 'mobileRevenue',
+])
+
+// ─── Sort indicator ───────────────────────────────────────────────────────────
+function SortIcon({ col, sortCol, dir }: { col: string; sortCol: string; dir: 'asc' | 'desc' }) {
+  if (col !== sortCol) return <span className="opacity-20 ml-1">↕</span>
+  return <span className="ml-1 text-primary">{dir === 'asc' ? '↑' : '↓'}</span>
+}
+
+// ─── Export Bar ───────────────────────────────────────────────────────────────
+function ExportBar({ onPDF, onCSV, isExporting, rowCount, filtered }: {
+  onPDF: () => void; onCSV: () => void; isExporting: boolean; rowCount: number; filtered: number
+}) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-        {rowCount} record{rowCount !== 1 ? 's' : ''}
+        {filtered} of {rowCount} record{rowCount !== 1 ? 's' : ''}
       </span>
       <div className="flex-1" />
       <button
         onClick={onCSV}
-        disabled={isExporting || rowCount === 0}
+        disabled={isExporting || filtered === 0}
         className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-secondary text-foreground hover:bg-primary/10 hover:text-primary border border-border flex items-center gap-2 transition-all disabled:opacity-40"
       >
         <Icons8 icon="export-csv" className="w-4 h-4" />
@@ -49,7 +65,7 @@ function ExportBar({ onPDF, onCSV, isExporting, rowCount }: { onPDF: () => void;
       </button>
       <button
         onClick={onPDF}
-        disabled={isExporting || rowCount === 0}
+        disabled={isExporting || filtered === 0}
         className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary/90 flex items-center gap-2 transition-all disabled:opacity-40 shadow-lg shadow-primary/20"
       >
         <Icons8 icon="pdf" className="w-4 h-4 invert" />
@@ -59,7 +75,23 @@ function ExportBar({ onPDF, onCSV, isExporting, rowCount }: { onPDF: () => void;
   )
 }
 
-function DataTable({ rows, emptyMessage = "No records found for this period." }: { rows: any[]; emptyMessage?: string }) {
+// ─── Smart Data Table with sort, search, pagination ──────────────────────────
+function DataTable({
+  rows,
+  emptyMessage = "No records found for this period.",
+}: {
+  rows: any[]
+  emptyMessage?: string
+}) {
+  const [sortCol, setSortCol] = useState('')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+
+  // Reset page when rows change
+  useEffect(() => { setPage(1) }, [rows])
+
   if (!rows?.length) {
     return (
       <div className="flex flex-col items-center justify-center py-20 opacity-40 gap-3">
@@ -68,40 +100,180 @@ function DataTable({ rows, emptyMessage = "No records found for this period." }:
       </div>
     )
   }
+
   const headers = Object.keys(rows[0])
+
+  // Filter
+  const filtered = useMemo(() => {
+    if (!search.trim()) return rows
+    const q = search.toLowerCase()
+    return rows.filter(row =>
+      headers.some(h => String(row[h] ?? '').toLowerCase().includes(q))
+    )
+  }, [rows, search, headers])
+
+  // Sort
+  const sorted = useMemo(() => {
+    if (!sortCol) return filtered
+    return [...filtered].sort((a, b) => {
+      const av = a[sortCol]; const bv = b[sortCol]
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return sortDir === 'asc' ? av - bv : bv - av
+      }
+      return sortDir === 'asc'
+        ? String(av).localeCompare(String(bv))
+        : String(bv).localeCompare(String(av))
+    })
+  }, [filtered, sortCol, sortDir])
+
+  // Paginate
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const paginated = sorted.slice((page - 1) * pageSize, page * pageSize)
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+    setPage(1)
+  }
+
+  const handleSearch = (v: string) => { setSearch(v); setPage(1) }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b border-border/50 bg-secondary/20">
-            {headers.map(h => (
-              <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">
-                {h.replace(/([A-Z])/g, ' $1')}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={idx} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+    <div className="flex flex-col gap-0">
+      {/* Search + Page size */}
+      <div className="px-4 py-3 border-b border-border/30 flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Icons8 icon="search" className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+            placeholder="Search records…"
+            className="w-full h-8 pl-8 pr-3 bg-secondary/40 border border-border rounded-lg text-[11px] font-bold text-foreground focus:outline-none focus:border-primary transition-all"
+          />
+          {search && (
+            <button onClick={() => handleSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-100">
+              ✕
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Show</span>
+          {[10, 25, 50, 100].map(n => (
+            <button
+              key={n}
+              onClick={() => { setPageSize(n); setPage(1) }}
+              className={cn(
+                "h-7 w-10 rounded-lg text-[10px] font-black transition-all",
+                pageSize === n ? "bg-primary text-white" : "bg-secondary text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border/50 bg-secondary/20">
               {headers.map(h => (
-                <td key={h} className={cn(
-                  "px-4 py-3 text-[12px] font-bold whitespace-nowrap",
-                  row[h] === 'STILL INSIDE' ? "text-red-500" :
-                  row[h] === 'EXITED' ? "text-emerald-500" :
-                  row[h] === 'YES' ? "text-red-500 font-black" :
-                  h === 'amount' || h === 'amountDue' || h === 'amountPaid' || h === 'totalRevenue'
-                    ? "text-emerald-500 font-black" : "text-foreground"
-                )}>
-                  {(h === 'amount' || h === 'amountDue' || h === 'amountPaid' || h === 'totalRevenue') && typeof row[h] === 'number'
-                    ? `Tsh ${row[h].toLocaleString()}`
-                    : String(row[h] ?? '—')}
-                </td>
+                <th
+                  key={h}
+                  onClick={() => handleSort(h)}
+                  className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none transition-colors"
+                >
+                  {h.replace(/([A-Z])/g, ' $1')}
+                  <SortIcon col={h} sortCol={sortCol} dir={sortDir} />
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {paginated.length === 0 ? (
+              <tr>
+                <td colSpan={headers.length} className="text-center py-12 text-[11px] font-black uppercase tracking-widest text-muted-foreground opacity-40">
+                  No results match your search
+                </td>
+              </tr>
+            ) : paginated.map((row, idx) => (
+              <tr
+                key={idx}
+                className={cn(
+                  "border-b border-border/30 hover:bg-muted/20 transition-colors",
+                  (row.fineAmount > 0 || row.watchmanForgot === 'YES') && "bg-amber-500/5"
+                )}
+              >
+                {headers.map(h => (
+                  <td
+                    key={h}
+                    className={cn(
+                      "px-4 py-3 text-[12px] font-bold whitespace-nowrap",
+                      row[h] === 'STILL INSIDE' ? "text-red-500" :
+                      row[h] === 'EXITED' ? "text-emerald-500" :
+                      row[h] === 'YES' ? "text-red-500 font-black" :
+                      h === 'fineAmount' && typeof row[h] === 'number' && row[h] > 0 ? "text-amber-500 font-black" :
+                      CURRENCY_COLS.has(h) ? "text-emerald-500 font-black" : "text-foreground"
+                    )}
+                  >
+                    {CURRENCY_COLS.has(h) && typeof row[h] === 'number'
+                      ? `Tsh ${row[h].toLocaleString()}`
+                      : String(row[h] ?? '—')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="px-4 py-3 border-t border-border/30 flex items-center justify-between flex-wrap gap-3">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            Page {page} of {totalPages} · {sorted.length} records
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="h-7 px-2 rounded-lg text-[10px] font-black bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all"
+            >«</button>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="h-7 px-3 rounded-lg text-[10px] font-black bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all"
+            >Prev</button>
+            {/* Page number buttons */}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const start = Math.max(1, Math.min(page - 2, totalPages - 4))
+              const p = start + i
+              return p <= totalPages ? (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={cn(
+                    "h-7 w-7 rounded-lg text-[10px] font-black transition-all",
+                    page === p ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-secondary text-muted-foreground hover:text-foreground"
+                  )}
+                >{p}</button>
+              ) : null
+            })}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="h-7 px-3 rounded-lg text-[10px] font-black bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all"
+            >Next</button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              className="h-7 px-2 rounded-lg text-[10px] font-black bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all"
+            >»</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -109,18 +281,27 @@ function DataTable({ rows, emptyMessage = "No records found for this period." }:
 function SummaryCards({ summary }: { summary: Record<string, any> }) {
   return (
     <div className="flex flex-wrap gap-4 p-4 bg-secondary/10 rounded-2xl border border-border/50">
-      {Object.entries(summary).map(([key, val]) => (
-        <div key={key} className="flex flex-col gap-0.5">
-          <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-            {key.replace(/([A-Z])/g, ' $1')}
-          </span>
-          <span className="text-[15px] font-black text-foreground">
-            {typeof val === 'number' && key.toLowerCase().includes('revenue')
-              ? `Tsh ${val.toLocaleString()}`
-              : String(val)}
-          </span>
-        </div>
-      ))}
+      {Object.entries(summary).map(([key, val]) => {
+        const isFine = key.toLowerCase().includes('fine') || key.toLowerCase().includes('overstay')
+        const isMoney = key.toLowerCase().includes('revenue') || key.toLowerCase().includes('paid') ||
+          key.toLowerCase().includes('charge') || key.toLowerCase().includes('grand') ||
+          key.toLowerCase().includes('cash') || key.toLowerCase().includes('mobile') || isFine
+        return (
+          <div key={key} className="flex flex-col gap-0.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+              {key.replace(/([A-Z])/g, ' $1')}
+            </span>
+            <span className={cn(
+              "text-[15px] font-black",
+              isFine && typeof val === 'number' && val > 0 ? "text-amber-500" : "text-foreground"
+            )}>
+              {typeof val === 'number' && isMoney
+                ? `Tsh ${val.toLocaleString()}`
+                : String(val)}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -207,7 +388,9 @@ export default function ReportsPage() {
             className={cn(
               "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shrink-0 whitespace-nowrap",
               activeTab === tab.id
-                ? "bg-primary text-white shadow-lg shadow-primary/20"
+                ? tab.id === 'overstay'
+                  ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
+                  : "bg-primary text-white shadow-lg shadow-primary/20"
                 : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
           >
@@ -221,15 +404,16 @@ export default function ReportsPage() {
       <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               <StatCard title="Total Revenue (30 Days)" value={`Tsh ${(overviewQuery.data?.keyMetrics?.totalRevenue ?? 0).toLocaleString()}`} icon="combo-chart" trend={{ value: 0, label: "Live data", isPositive: true }} delay={0.1} />
+              <StatCard title="Total Fines Charged" value={`Tsh ${(overviewQuery.data?.keyMetrics?.totalFines ?? 0).toLocaleString()}`} icon="warning-shield" trend={{ value: 0, label: "Overstay penalties", isPositive: false }} delay={0.15} />
               <StatCard title="Avg Session Duration" value={overviewQuery.data?.keyMetrics?.avgSessionDuration ?? '—'} icon="monitor" trend={{ value: 0, label: "Live data", isPositive: true }} delay={0.2} />
               <StatCard title="Total Vehicles (30 Days)" value={(overviewQuery.data?.keyMetrics?.totalVehicles ?? 0).toLocaleString()} icon="car" trend={{ value: 0, label: "Live data", isPositive: true }} delay={0.3} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="xl:col-span-2 glass border border-border rounded-3xl p-6 min-h-[380px] flex flex-col shadow-sm">
-                <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground mb-6">Revenue Trajectory (30 Days)</h3>
+                <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground mb-6">Revenue & Fines Trajectory (30 Days)</h3>
                 <div className="flex-1 min-h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={overviewQuery.data?.revenueOverTime ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -238,12 +422,17 @@ export default function ReportsPage() {
                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
                           <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                         </linearGradient>
+                        <linearGradient id="colorFines" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                        </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                       <XAxis dataKey="date" tickFormatter={(val) => format(new Date(val), 'MMM dd')} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: tickColor, fontWeight: 900 }} dy={10} />
                       <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `${val >= 1000 ? (val / 1000) + 'k' : val}`} tick={{ fontSize: 10, fill: tickColor, fontWeight: 900 }} />
-                      <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '12px', fontSize: '12px', fontWeight: 900 }} formatter={(v: any) => [`Tsh ${Number(v).toLocaleString()}`, 'Revenue']} labelFormatter={(l) => format(new Date(l), 'MMM dd, yyyy')} />
+                      <Tooltip contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '12px', fontSize: '12px', fontWeight: 900 }} formatter={(v: any, name: string) => [`Tsh ${Number(v).toLocaleString()}`, name === 'revenue' ? 'Parking Revenue' : 'Fines']} labelFormatter={(l) => format(new Date(l), 'MMM dd, yyyy')} />
                       <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" dot={false} activeDot={{ r: 5, fill: '#10b981', strokeWidth: 0 }} />
+                      <Area type="monotone" dataKey="fines" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorFines)" dot={false} activeDot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -280,6 +469,17 @@ export default function ReportsPage() {
         {activeTab !== 'overview' && (
           <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-5">
 
+            {/* Overstay banner */}
+            {activeTab === 'overstay' && (
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <Icons8 icon="warning-shield" className="w-6 h-6 shrink-0" />
+                <div>
+                  <p className="text-[12px] font-black text-amber-600 dark:text-amber-400">Overstay & Fines Report</p>
+                  <p className="text-[11px] text-muted-foreground">Shows all sessions where a fine was charged due to vehicle overstay past the allowed time limit.</p>
+                </div>
+              </div>
+            )}
+
             {/* Filters */}
             <div className="glass border border-border rounded-2xl p-4 flex flex-wrap items-end gap-4">
               <div>
@@ -298,6 +498,7 @@ export default function ReportsPage() {
                 { label: 'Today', days: 0 },
                 { label: '7 Days', days: 7 },
                 { label: '30 Days', days: 30 },
+                { label: '90 Days', days: 90 },
               ].map(p => (
                 <button key={p.label} onClick={() => { setStartDate(format(subDays(new Date(), p.days), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')) }}
                   className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest bg-secondary hover:bg-primary/10 hover:text-primary text-muted-foreground border border-border transition-all">
@@ -324,12 +525,21 @@ export default function ReportsPage() {
 
             {/* Table */}
             <div className="glass border border-border rounded-3xl overflow-hidden shadow-sm">
-              {/* Export bar */}
+              {/* Header + Export bar */}
               <div className="px-6 py-4 border-b border-border/50 flex items-center gap-4 flex-wrap">
-                <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground">
+                <h3 className={cn(
+                  "text-[13px] font-black uppercase tracking-widest",
+                  activeTab === 'overstay' ? "text-amber-500" : "text-foreground"
+                )}>
                   {activeConfig.label}
                 </h3>
-                <ExportBar onPDF={handlePDF} onCSV={handleCSV} isExporting={isExporting} rowCount={rows.length} />
+                <ExportBar
+                  onPDF={handlePDF}
+                  onCSV={handleCSV}
+                  isExporting={isExporting}
+                  rowCount={rows.length}
+                  filtered={rows.length}
+                />
               </div>
 
               {reportQuery.isLoading ? (

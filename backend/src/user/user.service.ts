@@ -52,9 +52,23 @@ export class UserService {
         name: data.name,
         role: data.role,
         siteId: data.siteId || null,
+        autoPrint: data.autoPrint !== undefined ? data.autoPrint : true,
+        autoSendEmail: data.autoSendEmail !== undefined ? data.autoSendEmail : false,
+        autoSendSms: data.autoSendSms !== undefined ? data.autoSendSms : false,
         isActive: true,
       },
-      select: { id: true, name: true, phone: true, email: true, role: true, site: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+        site: true,
+        autoPrint: true,
+        autoSendEmail: true,
+        autoSendSms: true,
+        createdAt: true,
+      },
     });
     
     if (data.email) {
@@ -71,11 +85,13 @@ export class UserService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new BadRequestException('User not found');
 
-    const updateData: any = {
-      name: data.name,
-      role: data.role,
-      siteId: data.siteId || null,
-    };
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.role !== undefined) updateData.role = data.role;
+    if ('siteId' in data) updateData.siteId = data.siteId || null;
+    if ('autoPrint' in data) updateData.autoPrint = data.autoPrint;
+    if ('autoSendEmail' in data) updateData.autoSendEmail = data.autoSendEmail;
+    if ('autoSendSms' in data) updateData.autoSendSms = data.autoSendSms;
 
     if ('email' in data) {
       if (data.email && data.email !== user.email) {
@@ -98,7 +114,18 @@ export class UserService {
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: updateData,
-      select: { id: true, name: true, phone: true, email: true, role: true, site: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+        site: true,
+        autoPrint: true,
+        autoSendEmail: true,
+        autoSendSms: true,
+        createdAt: true,
+      },
     });
 
     if (data.password) {

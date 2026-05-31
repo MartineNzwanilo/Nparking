@@ -5,8 +5,10 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 
 type SessionActor = {
   userId: string;
@@ -16,7 +18,12 @@ type SessionActor = {
 
 @Injectable()
 export class SessionService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(SessionService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   private async resolveOperatorContext(actor: SessionActor) {
     if (!actor?.userId) throw new UnauthorizedException('Missing user context');
@@ -50,6 +57,257 @@ export class SessionService {
     };
   }
 
+  private async triggerCheckInNotifications(
+    sessionId: string,
+    shouldSendSms: boolean,
+    shouldSendEmail: boolean,
+  ) {
+    try {
+      const session = await this.prisma.parkingSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          vehicle: {
+            include: { category: true },
+          },
+          site: true,
+        },
+      });
+
+      if (!session) return;
+
+      // 1. BEEM AFRICA SMS TRIGGER
+      if (shouldSendSms && (session.driverPhone || session.vehicle.phone)) {
+        const recipientPhone = session.driverPhone || session.vehicle.phone;
+        if (recipientPhone) {
+          const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
+          const template = settings?.smsTemplate ?? "Nparking: Vehicle {plateNumber} ({categoryName}) checked in at {siteName} by {driverName}. Date: {checkInTime}. Fee: TZS {amountDue}. Code: {ticketCode}. Thank you!";
+          
+          const formattedTime = new Date(session.checkIn).toLocaleString('en-US', {
+            timeZone: 'Africa/Dar_es_Salaam',
+            hour12: true,
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          const shortCode = session.id.substring(0, 8).toUpperCase();
+          
+          const message = template
+            .replace(/{plateNumber}/g, session.vehicle.plateNumber)
+            .replace(/{categoryName}/g, session.vehicle.category.name)
+            .replace(/{siteName}/g, session.site.name)
+            .replace(/{driverName}/g, session.driverName || 'Customer')
+            .replace(/{checkInTime}/g, formattedTime)
+            .replace(/{amountDue}/g, session.amountDue.toString())
+            .replace(/{ticketCode}/g, shortCode);
+
+          const smsResult = await this.notificationService.sendSms(recipientPhone, message);
+          if (smsResult) {
+            await this.prisma.parkingSession.update({
+              where: { id: sessionId },
+              data: { smsSent: true },
+            });
+          }
+        }
+      }
+
+      // 2. SMTP EMAIL RECEIPT TICKET TRIGGER
+      if (shouldSendEmail && (session.driverEmail || session.vehicle.phone)) {
+        const recipientEmail = session.driverEmail;
+        if (recipientEmail) {
+          const shortCode = session.id.substring(0, 8).toUpperCase();
+          const formattedTime = new Date(session.checkIn).toLocaleString('en-US', {
+            timeZone: 'Africa/Dar_es_Salaam',
+            hour12: true,
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+
+          const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Parking Entry Ticket</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f5f6f8;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      border: 1px solid #eef0f3;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: #ffffff;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .logo-text {
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: 0.5px;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .ticket-card {
+      background-color: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+      position: relative;
+    }
+    .ticket-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .ticket-row:last-child {
+      margin-bottom: 0;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .label {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .value {
+      color: #0f172a;
+      font-weight: 700;
+    }
+    .value.highlight {
+      color: #3b82f6;
+    }
+    .value.success {
+      color: #10b981;
+      font-size: 16px;
+    }
+    .qr-placeholder {
+      text-align: center;
+      margin: 20px 0;
+      padding: 15px;
+      background: #ffffff;
+      border-radius: 12px;
+      display: inline-block;
+      border: 1px solid #e2e8f0;
+    }
+    .qr-text {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 6px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .footer {
+      text-align: center;
+      padding: 0 30px 40px 30px;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-text">Nparking System</div>
+      <h1 class="title">ENTRY TICKET</h1>
+    </div>
+    <div class="content">
+      <div class="ticket-card">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div class="qr-placeholder">
+            <div style="font-size: 18px; font-weight: 900; color: #000; letter-spacing: 1px; font-family: monospace;">[ NPS TICKET ]</div>
+            <div class="qr-text">${shortCode}</div>
+          </div>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Ticket ID</span>
+          <span class="value">${shortCode}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Plate Number</span>
+          <span class="value highlight">${session.vehicle.plateNumber}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Vehicle Category</span>
+          <span class="value">${session.vehicle.category.name}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Parking Site</span>
+          <span class="value">${session.site.name}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Date & Time</span>
+          <span class="value">${formattedTime}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Driver Name</span>
+          <span class="value">${session.driverName || 'N/A'}</span>
+        </div>
+        <div class="ticket-row">
+          <span class="label">Amount Paid</span>
+          <span class="value success">TZS ${session.amountDue.toFixed(0)}</span>
+        </div>
+      </div>
+      <p style="color: #64748b; font-size: 13px; line-height: 1.6; margin: 0; text-align: center;">
+        Please keep this email safe. You will need the ticket code <b>${shortCode}</b> or your license plate number to check out and calculate your parking duration.
+      </p>
+    </div>
+    <div class="footer">
+      This is an automated parking receipt from Locomotors Nparking.<br>
+      © 2026 Locomotors Group. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
+          `;
+
+          const emailResult = await this.notificationService.sendEmail(
+            recipientEmail,
+            `Locomotors Parking Entry Ticket - ${session.vehicle.plateNumber}`,
+            html,
+          );
+
+          if (emailResult) {
+            await this.prisma.parkingSession.update({
+              where: { id: sessionId },
+              data: { emailSent: true },
+            });
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.error(`Failed to execute background notifications: ${err.message}`);
+    }
+  }
+
   async checkIn(
     data: {
       plateNumber: string;
@@ -58,6 +316,9 @@ export class SessionService {
       driverName?: string;
       driverPhone?: string;
       driverCompany?: string;
+      driverEmail?: string;
+      autoSendEmail?: boolean;
+      autoSendSms?: boolean;
       propertiesLeft?: string;
     },
     actor: SessionActor,
@@ -109,6 +370,9 @@ export class SessionService {
 
     const amountDue = category.price;
 
+    const shouldSendSms = data.autoSendSms !== undefined ? data.autoSendSms : user.autoSendSms;
+    const shouldSendEmail = data.autoSendEmail !== undefined ? data.autoSendEmail : user.autoSendEmail;
+
     // Create the new Session
     const session = await this.prisma.parkingSession.create({
       data: {
@@ -120,6 +384,7 @@ export class SessionService {
         driverName: data.driverName?.trim() || null,
         driverPhone: data.driverPhone?.trim() || null,
         driverCompany: data.driverCompany?.trim() || null,
+        driverEmail: data.driverEmail?.trim() || null,
         propertiesLeft: data.propertiesLeft?.trim() || null,
       },
     });
@@ -133,6 +398,14 @@ export class SessionService {
           method: 'CASH',
         },
       });
+    }
+
+    // Trigger check-in notifications asynchronously in background
+    if (shouldSendSms || shouldSendEmail) {
+      this.triggerCheckInNotifications(session.id, shouldSendSms, shouldSendEmail)
+        .catch(err => {
+          this.logger.error(`Error processing check-in notifications for session ${session.id}: ${err.message}`);
+        });
     }
 
     return session;

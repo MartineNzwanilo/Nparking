@@ -10,6 +10,7 @@ type CreateVehicleInput = {
   categoryName: string;
   ownerName?: string;
   phone?: string;
+  email?: string;
   company?: string;
   color?: string;
   makeModel?: string;
@@ -53,6 +54,7 @@ export class VehicleService {
         plateNumber,
         ownerName: data.ownerName?.trim() ?? null,
         phone: data.phone?.trim() ?? null,
+        email: data.email?.trim() ?? null,
         company: data.company?.trim() ?? null,
         color: data.color?.trim() ?? null,
         makeModel: data.makeModel?.trim() ?? null,
@@ -156,6 +158,7 @@ export class VehicleService {
       ownerName?: string;
       categoryName?: string;
       phone?: string;
+      email?: string;
       company?: string;
       color?: string;
       makeModel?: string;
@@ -168,6 +171,7 @@ export class VehicleService {
       isBlacklisted: data.isBlacklisted,
       ownerName: data.ownerName?.trim(),
       phone: data.phone?.trim(),
+      email: data.email?.trim(),
       company: data.company?.trim(),
       color: data.color?.trim(),
       makeModel: data.makeModel?.trim(),

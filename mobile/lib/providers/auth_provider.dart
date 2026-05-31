@@ -9,6 +9,9 @@ class AuthProvider extends ChangeNotifier {
   static const _userPhoneKey = 'auth_user_phone';
   static const _userRoleKey = 'auth_user_role';
   static const _userSiteIdKey = 'auth_user_site_id';
+  static const _userAutoPrintKey = 'auth_user_auto_print';
+  static const _userAutoSendEmailKey = 'auth_user_auto_send_email';
+  static const _userAutoSendSmsKey = 'auth_user_auto_send_sms';
 
   final ApiService _api = ApiService();
 
@@ -20,6 +23,9 @@ class AuthProvider extends ChangeNotifier {
   String? _phone;
   String? _role;
   String? _siteId;
+  bool _autoPrint = true;
+  bool _autoSendEmail = false;
+  bool _autoSendSms = false;
 
   bool get isLoading => _isLoading;
   bool get ready => _ready;
@@ -29,6 +35,9 @@ class AuthProvider extends ChangeNotifier {
   String? get phone => _phone;
   String? get role => _role;
   String? get siteId => _siteId;
+  bool get autoPrint => _autoPrint;
+  bool get autoSendEmail => _autoSendEmail;
+  bool get autoSendSms => _autoSendSms;
   bool get isAdmin => _role == 'ADMIN';
 
   AuthProvider() {
@@ -43,6 +52,9 @@ class AuthProvider extends ChangeNotifier {
     _phone = prefs.getString(_userPhoneKey);
     _role = prefs.getString(_userRoleKey);
     _siteId = prefs.getString(_userSiteIdKey);
+    _autoPrint = prefs.getBool(_userAutoPrintKey) ?? true;
+    _autoSendEmail = prefs.getBool(_userAutoSendEmailKey) ?? false;
+    _autoSendSms = prefs.getBool(_userAutoSendSmsKey) ?? false;
     ApiService.setAuthToken(_token);
     _ready = true;
     notifyListeners();
@@ -72,6 +84,9 @@ class AuthProvider extends ChangeNotifier {
       _phone = user['phone']?.toString();
       _role = user['role']?.toString();
       _siteId = user['siteId']?.toString();
+      _autoPrint = user['autoPrint'] as bool? ?? true;
+      _autoSendEmail = user['autoSendEmail'] as bool? ?? false;
+      _autoSendSms = user['autoSendSms'] as bool? ?? false;
       ApiService.setAuthToken(_token);
 
       final prefs = await SharedPreferences.getInstance();
@@ -81,6 +96,9 @@ class AuthProvider extends ChangeNotifier {
       if (_phone != null) await prefs.setString(_userPhoneKey, _phone!);
       if (_role != null) await prefs.setString(_userRoleKey, _role!);
       if (_siteId != null) await prefs.setString(_userSiteIdKey, _siteId!);
+      await prefs.setBool(_userAutoPrintKey, _autoPrint);
+      await prefs.setBool(_userAutoSendEmailKey, _autoSendEmail);
+      await prefs.setBool(_userAutoSendSmsKey, _autoSendSms);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -93,7 +111,6 @@ class AuthProvider extends ChangeNotifier {
         await _api.post('/auth/logout', {});
       }
     } catch (e) {
-      // Fail-safe: ignore connection errors on logout to allow offline/clean logout
       print('Backend logout failed: $e');
     }
 
@@ -103,6 +120,9 @@ class AuthProvider extends ChangeNotifier {
     _phone = null;
     _role = null;
     _siteId = null;
+    _autoPrint = true;
+    _autoSendEmail = false;
+    _autoSendSms = false;
     ApiService.setAuthToken(null);
 
     final prefs = await SharedPreferences.getInstance();
@@ -112,7 +132,40 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove(_userPhoneKey);
     await prefs.remove(_userRoleKey);
     await prefs.remove(_userSiteIdKey);
+    await prefs.remove(_userAutoPrintKey);
+    await prefs.remove(_userAutoSendEmailKey);
+    await prefs.remove(_userAutoSendSmsKey);
     notifyListeners();
+  }
+
+  Future<void> updatePreferences({
+    bool? autoPrint,
+    bool? autoSendEmail,
+    bool? autoSendSms,
+  }) async {
+    try {
+      final payload = {
+        if (autoPrint != null) 'autoPrint': autoPrint,
+        if (autoSendEmail != null) 'autoSendEmail': autoSendEmail,
+        if (autoSendSms != null) 'autoSendSms': autoSendSms,
+      };
+
+      if (autoPrint != null) _autoPrint = autoPrint;
+      if (autoSendEmail != null) _autoSendEmail = autoSendEmail;
+      if (autoSendSms != null) _autoSendSms = autoSendSms;
+      notifyListeners();
+
+      final prefs = await SharedPreferences.getInstance();
+      if (autoPrint != null) await prefs.setBool(_userAutoPrintKey, autoPrint);
+      if (autoSendEmail != null) await prefs.setBool(_userAutoSendEmailKey, autoSendEmail);
+      if (autoSendSms != null) await prefs.setBool(_userAutoSendSmsKey, autoSendSms);
+
+      if (isAuthenticated) {
+        await _api.patch('/users/profile/settings', payload);
+      }
+    } catch (e) {
+      print('Failed to sync preferences with server: $e');
+    }
   }
 
   Future<void> forgotPassword(String email) async {

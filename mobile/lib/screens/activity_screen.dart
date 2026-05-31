@@ -251,7 +251,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               final api = ApiService();
                               final session = await api.get('/sessions/$sessionId');
                               Navigator.pop(ctx);
-                              await PrintingService.printTicket(session);
+                              await PrintingService.showPrintDialog(context, session);
                             } catch (e) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(

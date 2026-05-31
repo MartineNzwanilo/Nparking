@@ -111,6 +111,9 @@ export class AuthService {
         phone: user.phone,
         role: user.role,
         siteId: user.siteId,
+        autoPrint: user.autoPrint,
+        autoSendEmail: user.autoSendEmail,
+        autoSendSms: user.autoSendSms,
       },
     };
   }
@@ -125,6 +128,9 @@ export class AuthService {
         email: true,
         role: true,
         siteId: true,
+        autoPrint: true,
+        autoSendEmail: true,
+        autoSendSms: true,
       },
     });
     if (!user) throw new UnauthorizedException('User not found');

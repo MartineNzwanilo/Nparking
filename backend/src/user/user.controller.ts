@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Req } from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -13,6 +13,15 @@ export class UserController {
   @Get()
   findAll(@Query('siteId') siteId?: string) {
     return this.userService.findAll(siteId);
+  }
+
+  @Patch('profile/settings')
+  @Roles('ADMIN', 'WATCHMAN')
+  updateProfileSettings(
+    @Req() req: { user: { userId: string } },
+    @Body() data: { autoPrint?: boolean; autoSendEmail?: boolean; autoSendSms?: boolean }
+  ) {
+    return this.userService.update(req.user.userId, data);
   }
 
   @Post()

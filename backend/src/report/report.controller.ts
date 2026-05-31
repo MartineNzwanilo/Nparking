@@ -73,4 +73,13 @@ export class ReportController {
   ) {
     return this.reportService.getSecurityReport(startDate, endDate, siteId);
   }
+
+  @Get('overstay')
+  getOverstayReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('siteId') siteId?: string,
+  ) {
+    return this.reportService.getOverstayReport(startDate, endDate, siteId);
+  }
 }
