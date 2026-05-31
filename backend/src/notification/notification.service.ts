@@ -120,10 +120,15 @@ export class NotificationService {
     try {
       const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
       
+      // Format number to international format without '+'
+      // If it starts with '0', assume Tanzanian and replace with '255'
+      let cleanTo = to.replace(/[\s-]/g, '').replace(/^\+/, '');
+      if (cleanTo.startsWith('0')) {
+        cleanTo = '255' + cleanTo.substring(1);
+      }
+
       // 1. BEEM AFRICA FLOW
       if (settings?.enableBeemSms && settings.beemApiKey && settings.beemSecretKey) {
-        const cleanTo = to.replace(/[\s-]/g, '').replace(/^\+/, '');
-
         const payload = JSON.stringify({
           source_addr: settings.beemSenderId || 'INFO',
           schedule_time: '',
@@ -155,12 +160,10 @@ export class NotificationService {
 
       const client = new Twilio(settings.twilioAccountSid, settings.twilioAuthToken);
       
-      // Clean up numbers by removing spaces and dashes
-      const cleanTo = to.replace(/[\s-]/g, '');
       const cleanFrom = settings.twilioSmsNum.replace(/[\s-]/g, '');
 
       // Ensure the 'to' number is formatted with E.164
-      const formattedTo = cleanTo.startsWith('+') ? cleanTo : `+${cleanTo}`;
+      const formattedTo = `+${cleanTo}`;
       
       const payload: any = {
         body: message,
