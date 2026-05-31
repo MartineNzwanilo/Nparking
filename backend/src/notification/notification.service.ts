@@ -132,6 +132,7 @@ export class NotificationService {
         const payload = JSON.stringify({
           source_addr: settings.beemSenderId || 'INFO',
           schedule_time: '',
+          encoding: 0,
           message: message,
           recipients: [{ recipient_id: 1, dest_addr: cleanTo }],
         });
