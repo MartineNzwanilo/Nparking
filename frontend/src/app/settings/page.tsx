@@ -663,14 +663,14 @@ export default function SettingsPage() {
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Check-in SMS Message Template</label>
-                        <span className="text-[9px] font-bold text-primary font-mono select-all">Variables: {`{plateNumber}, {categoryName}, {siteName}, {driverName}, {checkInTime}, {amountDue}, {ticketCode}`}</span>
+                        <span className="text-[9px] font-bold text-primary font-mono select-all">Variables: {`{plateNumber}, {categoryName}, {siteName}, {driverName}, {checkInTime}, {amountDue}, {ticketCode}, {propertiesLeft}`}</span>
                       </div>
                       <textarea 
                         value={settings.smsTemplate || ''} 
                         onChange={(e) => setSettings({...settings, smsTemplate: e.target.value})}
                         rows={3}
                         className="w-full bg-secondary/30 border border-border rounded-2xl p-4 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
-                        placeholder="e.g. Nparking: Vehicle {plateNumber} checked in at {siteName}. Code: {ticketCode}." 
+                        placeholder="e.g. Nparking: Vehicle {plateNumber} checked in at {siteName}. {propertiesLeft} Code: {ticketCode}." 
                       />
                     </div>
                   </div>
