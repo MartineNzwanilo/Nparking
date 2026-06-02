@@ -52,8 +52,8 @@ export function Sidebar({ className, isMobile, onCloseTrigger: CloseTrigger }: S
       <aside className={cn(baseClasses, className)}>
         {/* Header / Logo */}
         <div className="h-[70px] border-b border-sidebar-border flex items-center px-6 gap-3 shrink-0 relative overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/50 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20 backdrop-blur-md">
-            <Icons8 icon="parking" className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20 backdrop-blur-md overflow-hidden bg-white/90 p-0.5">
+            <img src="/nps_logo.png" alt="NPS Logo" className="w-full h-full object-contain" />
           </div>
           {showCaption && (
             <div className="flex flex-col z-10">
