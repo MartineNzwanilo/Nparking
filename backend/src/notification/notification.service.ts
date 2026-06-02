@@ -189,4 +189,38 @@ export class NotificationService {
       return false;
     }
   }
+
+  async getBeemBalance(): Promise<any> {
+    try {
+      const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
+      if (!settings?.beemApiKey || !settings?.beemSecretKey) {
+        return { error: 'Beem Africa is not configured' };
+      }
+
+      const authHeader = 'Basic ' + Buffer.from(`${settings.beemApiKey}:${settings.beemSecretKey}`).toString('base64');
+      
+      return new Promise((resolve) => {
+        const req = https.get('https://apisms.beem.africa/public/v1/vendors/balance', {
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          }
+        }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              resolve({ error: 'Failed to parse Beem balance response', data });
+            }
+          });
+        });
+        
+        req.on('error', (err) => resolve({ error: err.message }));
+      });
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
 }

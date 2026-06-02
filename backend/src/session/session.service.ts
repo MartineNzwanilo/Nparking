@@ -93,6 +93,7 @@ export class SessionService {
           });
           const shortCode = session.id.substring(0, 8).toUpperCase();
           
+          const propertiesText = session.propertiesLeft ? `Items left: ${session.propertiesLeft}. ` : '';
           const message = template
             .replace(/{plateNumber}/g, session.vehicle.plateNumber)
             .replace(/{categoryName}/g, session.vehicle.category.name)
@@ -100,7 +101,8 @@ export class SessionService {
             .replace(/{driverName}/g, session.driverName || 'Customer')
             .replace(/{checkInTime}/g, formattedTime)
             .replace(/{amountDue}/g, session.amountDue.toString())
-            .replace(/{ticketCode}/g, shortCode);
+            .replace(/{ticketCode}/g, shortCode)
+            .replace(/{propertiesLeft}/g, propertiesText);
 
           const smsResult = await this.notificationService.sendSms(recipientPhone, message);
           if (smsResult) {

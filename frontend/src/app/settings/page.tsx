@@ -70,6 +70,30 @@ export default function SettingsPage() {
     overstayFineAmount: 5000,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [beemBalance, setBeemBalance] = useState<string | null>(null);
+  const [isCheckingBalance, setIsCheckingBalance] = useState(false);
+
+  const handleCheckBalance = async () => {
+    setIsCheckingBalance(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings/beem-balance`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('nparking_token')}`
+        }
+      });
+      const data = await res.json();
+      if (data.error) {
+        setBeemBalance(`Error: ${data.error}`);
+      } else if (data.data?.balance !== undefined) {
+        setBeemBalance(data.data.balance.toString());
+      } else {
+        setBeemBalance("Balance info unavailable");
+      }
+    } catch (e) {
+      setBeemBalance("Network error");
+    }
+    setIsCheckingBalance(false);
+  };
 
   useEffect(() => {
     setMounted(true)
@@ -613,6 +637,25 @@ export default function SettingsPage() {
                         className="w-full h-11 bg-secondary/30 border border-border rounded-xl px-4 text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-mono" 
                         placeholder="e.g. INFO or approved Sender ID" 
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current SMS Balance</label>
+                      <div className="flex items-center gap-4 h-11">
+                        <button 
+                          onClick={handleCheckBalance} 
+                          disabled={isCheckingBalance}
+                          className="h-full px-6 rounded-xl font-black text-[11px] uppercase tracking-widest bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-all flex items-center gap-2"
+                        >
+                          <Icons8 icon={isCheckingBalance ? "spinner" : "refresh"} className={cn("w-4 h-4", isCheckingBalance && "animate-spin")} />
+                          Check Balance
+                        </button>
+                        {beemBalance && (
+                          <span className="text-sm font-black text-foreground">
+                            {beemBalance} {beemBalance.includes('Error') ? '' : 'SMS'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="space-y-2 md:col-span-2">

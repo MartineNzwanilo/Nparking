@@ -4,12 +4,14 @@ import { PrismaService } from './prisma/prisma.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
+import { NotificationService } from './notification/notification.service';
 
 @Controller('api')
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Get()
@@ -35,6 +37,13 @@ export class AppController {
       overstayTimeLimit: settings?.overstayTimeLimit ?? '08:00:00',
       overstayFineAmount: settings?.overstayFineAmount ?? 5000,
     };
+  }
+
+  @Get('settings/beem-balance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async getBeemBalance() {
+    return this.notificationService.getBeemBalance();
   }
 
   @Post('settings')
@@ -80,7 +89,7 @@ export class AppController {
         beemSenderId: data.beemSenderId ?? 'INFO',
         overstayTimeLimit: data.overstayTimeLimit ?? '08:00:00',
         overstayFineAmount: data.overstayFineAmount ? parseFloat(data.overstayFineAmount) : 5000,
-        smsTemplate: data.smsTemplate ?? "Nparking: Vehicle {plateNumber} ({categoryName}) checked in at {siteName} by {driverName}. Date: {checkInTime}. Fee: TZS {amountDue}. Code: {ticketCode}. Thank you!",
+        smsTemplate: data.smsTemplate ?? "Nparking: Vehicle {plateNumber} ({categoryName}) checked in at {siteName} by {driverName}. Date: {checkInTime}. Fee: TZS {amountDue}. Code: {ticketCode}. {propertiesLeft}Thank you!",
       },
     });
   }
