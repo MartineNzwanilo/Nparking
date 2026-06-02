@@ -649,7 +649,7 @@ export default function SettingsPage() {
                           disabled={isCheckingBalance}
                           className="h-full px-6 rounded-xl font-black text-[11px] uppercase tracking-widest bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-all flex items-center gap-2"
                         >
-                          <Icons8 icon={isCheckingBalance ? "spinner" : "refresh"} className={cn("w-4 h-4", isCheckingBalance && "animate-spin")} />
+                          <Icons8 icon={isCheckingBalance ? "spinner" : "synchronize"} className={cn("w-4 h-4", isCheckingBalance && "animate-spin")} />
                           Check Balance
                         </button>
                         {beemBalance && (
