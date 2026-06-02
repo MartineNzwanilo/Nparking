@@ -78,7 +78,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings/beem-balance`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('nparking_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('parking-auth-token')}`
         }
       });
       const data = await res.json();
