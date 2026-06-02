@@ -84,6 +84,8 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.error) {
         setBeemBalance(`Error: ${data.error}`);
+      } else if (data.data?.credit_balance !== undefined) {
+        setBeemBalance(data.data.credit_balance.toString());
       } else if (data.data?.balance !== undefined) {
         setBeemBalance(data.data.balance.toString());
       } else {
