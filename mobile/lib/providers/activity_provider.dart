@@ -19,7 +19,8 @@ class ActivityProvider extends ChangeNotifier {
       if (SyncService().status != SyncStatus.offline) {
         String url = '/sessions/activity';
         if (startDate != null && endDate != null) {
-          url += '?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}';
+          final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+          url += '?startDate=${startDate.toIso8601String()}&endDate=${endOfDay.toIso8601String()}';
         }
         _activities = await _apiService.get(url);
       }
