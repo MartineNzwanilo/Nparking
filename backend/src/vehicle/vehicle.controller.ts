@@ -79,8 +79,6 @@ export class VehicleController {
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
   update(
     @Param('id') id: string,
     @Body() data: { 

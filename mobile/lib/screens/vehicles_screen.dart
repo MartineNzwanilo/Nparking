@@ -496,13 +496,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                 } catch (_) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(context.t.tr('failedRegisterAndCheckIn'))),
+                                      SnackBar(content: Text(editingVehicle != null ? 'Failed to update vehicle' : context.t.tr('failedRegisterAndCheckIn'))),
                                     );
                                   }
                                 }
                               },
                               child: Text(
-                                context.t.tr('completeRegistration'),
+                                editingVehicle != null ? (context.t.tr('saveChanges') ?? 'Save Changes') : context.t.tr('completeRegistration'),
                                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                               ),
                             ),
