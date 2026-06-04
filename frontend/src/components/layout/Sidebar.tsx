@@ -52,21 +52,15 @@ export function Sidebar({ className, isMobile, onCloseTrigger: CloseTrigger }: S
       <aside className={cn(baseClasses, className)}>
         {/* Header / Logo */}
         <div className="h-[70px] border-b border-sidebar-border flex items-center px-6 gap-3 shrink-0 relative overflow-hidden">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/30 overflow-hidden bg-slate-900 p-1.5 border border-slate-700">
+          <div className="w-10 h-10 flex items-center justify-center shrink-0 overflow-hidden relative z-10">
             <img src="/nps_logo.png" alt="NPS Logo" className="w-full h-full object-contain" />
           </div>
           {showCaption && (
             <div className="flex flex-col z-10">
-              <span className="font-black text-[13px] tracking-tight uppercase text-foreground leading-none">NGEWA PARKING</span>
-              <span className="text-[9px] font-bold text-primary tracking-widest uppercase mt-1">SERVICE</span>
+              <span className="font-black text-[15px] tracking-tight uppercase text-foreground leading-none">NGEWA PARKING</span>
+              <span className="text-[11px] font-black text-primary tracking-widest uppercase mt-1">SERVICE</span>
             </div>
           )}
-          {/* Subtle animated background glow */}
-          <motion.div 
-            className="absolute -inset-4 bg-primary/10 blur-2xl rounded-full"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          />
         </div>
 
         {/* Navigation Section */}
