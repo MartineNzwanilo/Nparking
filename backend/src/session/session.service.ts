@@ -82,15 +82,15 @@ export class SessionService {
           const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
           const template = settings?.smsTemplate ?? "Nparking: Vehicle {plateNumber} ({categoryName}) checked in at {siteName} by {driverName}. Date: {checkInTime}. Fee: TZS {amountDue}. Code: {ticketCode}. Thank you!";
           
-          const formattedTime = new Date(session.checkIn).toLocaleString('en-US', {
+          const formattedTime = new Date(session.checkIn).toLocaleString('en-GB', {
             timeZone: 'Africa/Dar_es_Salaam',
-            hour12: true,
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
-          });
+            hour12: false,
+          }).replace(',', '');
           const shortCode = session.id.substring(0, 8).toUpperCase();
           
           const propertiesText = session.propertiesLeft ? `Items left: ${session.propertiesLeft}. ` : '';
