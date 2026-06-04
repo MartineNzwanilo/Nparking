@@ -647,36 +647,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Driver Details Expansion Tile
-              Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  title: Text(
-                    "DRIVER DETAILS (OPTIONAL)",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                      color: AppTheme.textSecondary(context).withOpacity(0.7),
-                    ),
-                  ),
-                  iconColor: AppTheme.primary,
-                  collapsedIconColor: AppTheme.textSecondary(context),
-                  tilePadding: EdgeInsets.zero,
-                  children: [
-                    _buildInputField(_driverNameController, "Driver Full Name", LucideIcons.user),
-                    const SizedBox(height: 12),
-                    _buildInputField(_driverPhoneController, "Driver Phone Number", LucideIcons.phone, keyboardType: TextInputType.phone),
-                    const SizedBox(height: 12),
-                    _buildInputField(_driverEmailController, "Driver Email Address", LucideIcons.mail, keyboardType: TextInputType.emailAddress),
-                    const SizedBox(height: 12),
-                    _buildInputField(_driverCompanyController, "Driver Company / Agency", LucideIcons.building),
-                    const SizedBox(height: 12),
-                    _buildInputField(_propertiesController, "Properties Left in Vehicle", LucideIcons.package, maxLines: 2),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
+              // Properties Left in Vehicle Field
+              _buildInputField(_propertiesController, "Properties Left in Vehicle", LucideIcons.package, maxLines: 2),
               const SizedBox(height: 20),
 
               // Glowing Override toggles card
