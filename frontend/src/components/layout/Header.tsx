@@ -73,17 +73,27 @@ export function Header() {
 
     return (
         <header className={cn(
-            "fixed top-0 right-0 z-[60] h-[60px] md:h-[70px] flex items-center glass border-b border-border transition-all duration-300 w-full",
-            showCaption ? "xl:ps-[240px]" : "xl:ps-[90px]",
-            "ps-0"
+            "fixed top-0 right-0 z-[60] h-[60px] md:h-[70px] flex items-center glass bg-background/95 border-b border-border transition-all duration-300 w-full",
+            "xl:ps-[300px] ps-0"
         )}>
+            {/* Absolute Logo Lockup for Desktop */}
+            <div className="hidden xl:flex absolute left-0 top-0 h-full items-center px-6 gap-3 w-[300px] bg-background">
+                <div className="w-[45px] h-[45px] flex items-center justify-center shrink-0">
+                    <img src="/nps_logo.png" alt="NPS Logo" className="w-full h-full object-contain drop-shadow-sm" />
+                </div>
+                <div className="flex flex-col whitespace-nowrap">
+                    <span className="font-black text-[18px] tracking-tight uppercase text-foreground leading-none">NGEWA PARKING</span>
+                    <span className="text-[12px] font-black text-primary tracking-widest uppercase mt-1">SERVICE</span>
+                </div>
+            </div>
+
             <div className={cn(
                 "flex items-center justify-between w-full px-4 md:px-6",
                 layoutWidth === "fixed" ? "max-w-7xl mx-auto" : "max-w-full"
             )}>
                 {/* Left: Menu & Breadcrumbs */}
                 <div className="flex items-center gap-1 sm:gap-4">
-                    <div className="xl:hidden">
+                    <div className="xl:hidden flex items-center gap-3">
                         <Sheet>
                             <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted transition-all">
@@ -96,9 +106,17 @@ export function Header() {
                                 </SheetClose>
                             </SheetContent>
                         </Sheet>
+                        {/* Mobile Logo Lockup */}
+                        <div className="flex items-center gap-2">
+                            <img src="/nps_logo.png" alt="NPS Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain drop-shadow-sm" />
+                            <div className="flex flex-col whitespace-nowrap">
+                                <span className="font-black text-[14px] md:text-[16px] tracking-tight uppercase text-foreground leading-none">NGEWA PARKING</span>
+                                <span className="text-[9px] md:text-[10px] font-black text-primary tracking-widest uppercase mt-0.5">SERVICE</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="hidden lg:flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <div className="hidden xl:flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-muted-foreground">
                         <Link href="/" className="hover:text-primary transition-colors">Hub</Link>
                         {breadcrumbs.map((crumb, index) => (
                             <React.Fragment key={index}>
