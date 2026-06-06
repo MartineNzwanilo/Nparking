@@ -57,47 +57,62 @@ class SyncService extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _isSyncing = false;
+
   Future<void> syncPendingQueue() async {
-    if (_status == SyncStatus.syncing) return;
-    
-    final db = await DatabaseHelper.instance.database;
-    final queue = await db.query('sync_queue', orderBy: 'timestamp ASC');
-    
-    if (queue.isEmpty) {
-      _status = SyncStatus.synced;
-      _pendingCount = 0;
-      notifyListeners();
-      return;
-    }
-
+    if (_isSyncing) return;
+    _isSyncing = true;
     _status = SyncStatus.syncing;
-    _pendingCount = queue.length;
     notifyListeners();
-
-    for (var item in queue) {
-      final id = item['id'] as int;
-      final endpoint = item['endpoint'] as String;
-      final method = item['method'] as String;
-      final payloadStr = item['payload'] as String?;
+    
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final queue = await db.query('sync_queue', orderBy: 'timestamp ASC');
       
-      try {
-        if (method == 'POST') {
-          await _apiService.post(endpoint, payloadStr != null ? jsonDecode(payloadStr) : {});
-        } else if (method == 'PATCH') {
-          await _apiService.patch(endpoint, payloadStr != null ? jsonDecode(payloadStr) : {});
-        }
-        
-        // Remove from queue on success
-        await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
-      } catch (e) {
-        print('Sync failed for item $id: $e');
-        // Increment retry count
-        final retryCount = (item['retryCount'] as int) + 1;
-        await db.update('sync_queue', {'retryCount': retryCount}, where: 'id = ?', whereArgs: [id]);
-        break; // Stop syncing on first failure to maintain order, will retry later
+      if (queue.isEmpty) {
+        _status = SyncStatus.synced;
+        _pendingCount = 0;
+        notifyListeners();
+        return;
       }
-    }
 
-    await checkPendingItems();
+      _pendingCount = queue.length;
+      notifyListeners();
+
+      for (var item in queue) {
+        final id = item['id'] as int;
+        final endpoint = item['endpoint'] as String;
+        final method = item['method'] as String;
+        final payloadStr = item['payload'] as String?;
+        
+        try {
+          if (method == 'POST') {
+            await _apiService.post(endpoint, payloadStr != null ? jsonDecode(payloadStr) : {});
+          } else if (method == 'PATCH') {
+            await _apiService.patch(endpoint, payloadStr != null ? jsonDecode(payloadStr) : {});
+          }
+          
+          // Remove from queue on success
+          await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
+        } catch (e) {
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('409') || errorStr.contains('conflict') || errorStr.contains('already exists')) {
+            // Already synced or conflict occurred on the server. Remove it to unblock the queue.
+            await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
+          } else {
+            print('Sync failed for item $id: $e');
+            // Increment retry count
+            final retryCount = (item['retryCount'] as int) + 1;
+            await db.update('sync_queue', {'retryCount': retryCount}, where: 'id = ?', whereArgs: [id]);
+            break; // Stop syncing on first failure to maintain order, will retry later
+          }
+        }
+      }
+    } catch (e) {
+      print('Sync queue loop error: $e');
+    } finally {
+      _isSyncing = false;
+      await checkPendingItems();
+    }
   }
 }

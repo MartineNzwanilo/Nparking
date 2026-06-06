@@ -542,45 +542,51 @@ class PrintingService {
     );
   }
 
+  static bool _isProcessingPending = false;
+
   static Future<void> processPendingPrintJobs() async {
+    if (_isProcessingPending) return;
+    _isProcessingPending = true;
     try {
       final db = await DatabaseHelper.instance.database;
       final queue = await db.query('print_queue', orderBy: 'timestamp ASC');
       
-      if (queue.isEmpty) return;
-
-      for (var item in queue) {
-        final id = item['id'] as int;
-        final ip = item['printerIp'] as String;
-        final base64Bytes = item['bytes'] as String;
-        final bytes = base64Decode(base64Bytes);
-
-        String host = ip;
-        int port = 9100;
-        if (ip.contains(':')) {
-          final parts = ip.split(':');
-          host = parts[0];
-          if (parts.length > 1) {
-            port = int.tryParse(parts[1]) ?? 9100;
+      if (queue.isNotEmpty) {
+        for (var item in queue) {
+          final id = item['id'] as int;
+          final ip = item['printerIp'] as String;
+          final base64Bytes = item['bytes'] as String;
+          final bytes = base64Decode(base64Bytes);
+ 
+          String host = ip;
+          int port = 9100;
+          if (ip.contains(':')) {
+            final parts = ip.split(':');
+            host = parts[0];
+            if (parts.length > 1) {
+              port = int.tryParse(parts[1]) ?? 9100;
+            }
           }
-        }
-
-        try {
-          debugPrint('[PrintingService] Attempting to print pending job $id to $host:$port');
-          final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 3));
-          socket.add(bytes);
-          await socket.flush();
-          socket.destroy();
-          
-          // If successful, delete from queue
-          await db.delete('print_queue', where: 'id = ?', whereArgs: [id]);
-          debugPrint('[PrintingService] Successfully printed and cleared pending job $id');
-        } catch (e) {
-          debugPrint('[PrintingService] Pending job $id to $host:$port still failing: $e');
+ 
+          try {
+            debugPrint('[PrintingService] Attempting to print pending job $id to $host:$port');
+            final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 3));
+            socket.add(bytes);
+            await socket.flush();
+            socket.destroy();
+            
+            // If successful, delete from queue
+            await db.delete('print_queue', where: 'id = ?', whereArgs: [id]);
+            debugPrint('[PrintingService] Successfully printed and cleared pending job $id');
+          } catch (e) {
+            debugPrint('[PrintingService] Pending job $id to $host:$port still failing: $e');
+          }
         }
       }
     } catch (e) {
       debugPrint('[PrintingService] Error processing pending print jobs: $e');
+    } finally {
+      _isProcessingPending = false;
     }
   }
 }

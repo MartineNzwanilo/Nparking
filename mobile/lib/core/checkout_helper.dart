@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../providers/vehicle_provider.dart';
+import '../providers/activity_provider.dart';
 import 'global_popup.dart';
 
 class CheckoutHelper {
@@ -220,6 +221,9 @@ class CheckoutHelper {
         watchmanForgot: watchmanForgot,
       );
       Navigator.pop(context);
+      if (context.mounted) {
+        context.read<ActivityProvider>().fetchActivities();
+      }
       
       GlobalPopup.showSuccess(
         context,
@@ -380,6 +384,9 @@ class CheckoutHelper {
                             try {
                               await context.read<VehicleProvider>().checkOutVehicle(sessionId);
                               Navigator.pop(context);
+                              if (context.mounted) {
+                                context.read<ActivityProvider>().fetchActivities();
+                              }
                               
                               GlobalPopup.showSuccess(
                                 context,

@@ -9,6 +9,7 @@ import '../widgets/complex_animations.dart';
 import '../core/checkout_helper.dart';
 import '../providers/vehicle_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/activity_provider.dart';
 import '../services/printing_service.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -2207,6 +2208,7 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
                                   }
 
                                   if (scaffoldContext.mounted) {
+                                    scaffoldContext.read<ActivityProvider>().fetchActivities();
                                     final shouldPrint = overridePrint ?? initPrint;
                                     if (shouldPrint) {
                                       PrintingService.printTicket(scaffoldContext, session).catchError((err) {

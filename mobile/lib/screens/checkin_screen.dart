@@ -10,6 +10,7 @@ import '../core/global_popup.dart';
 import '../providers/vehicle_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/shell_navigation_provider.dart';
+import '../providers/activity_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -1053,6 +1054,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           );
                           
                           if (mounted) {
+                            context.read<ActivityProvider>().fetchActivities();
                             _plateController.clear();
                             _driverNameController.clear();
                             _driverPhoneController.clear();
