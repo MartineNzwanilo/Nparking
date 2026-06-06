@@ -3,8 +3,15 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+
 import '../../core/theme.dart';
 import '../../providers/admin_provider.dart';
+import '../../services/printing_service.dart';
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -24,11 +31,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   final List<Map<String, dynamic>> _reportTabs = [
     { 'id': 'overview',        'label': 'Overview',          'icon': LucideIcons.barChart2,   'endpoint': null },
     { 'id': 'daily-revenue',   'label': 'Daily Revenue',     'icon': LucideIcons.dollarSign,  'endpoint': 'daily-revenue' },
+    { 'id': 'financial',       'label': 'Financials',        'icon': LucideIcons.pieChart,    'endpoint': 'financial' },
     { 'id': 'sessions',        'label': 'Sessions',          'icon': LucideIcons.car,         'endpoint': 'sessions' },
     { 'id': 'staff',           'label': 'Staff Performance', 'icon': LucideIcons.users,        'endpoint': 'staff-performance' },
     { 'id': 'vehicle-history', 'label': 'Vehicle History',   'icon': LucideIcons.history,     'endpoint': 'vehicle-history' },
     { 'id': 'site-utilization','label': 'Site Utilization',  'icon': LucideIcons.parkingSquare,'endpoint': 'site-utilization' },
     { 'id': 'security',        'label': 'Security',          'icon': LucideIcons.shieldAlert, 'endpoint': 'security' },
+    { 'id': 'overstay',        'label': 'Overstays / Fines', 'icon': LucideIcons.clockAlert,  'endpoint': 'overstay' },
   ];
 
   final List<Color> _pieColors = [
@@ -83,41 +92,180 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     _fetchData();
   }
 
-  void _handleExportCSV(BuildContext context, String tabLabel, List<dynamic> rows) {
-    if (rows.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No records to export")),
-      );
-      return;
+  Future<Directory?> _getNpsDirectory() async {
+    if (Platform.isAndroid) {
+      var status = await Permission.storage.status;
+      if (!status.isGranted) {
+        status = await Permission.storage.request();
+      }
+      if (!status.isGranted) {
+        var manageStatus = await Permission.manageExternalStorage.status;
+        if (!manageStatus.isGranted) {
+          manageStatus = await Permission.manageExternalStorage.request();
+        }
+      }
+
+      final Directory dir = Directory('/storage/emulated/0/Download/NPS');
+      if (!await dir.exists()) {
+        try {
+          await dir.create(recursive: true);
+        } catch (e) {
+          final fallbackDir = await getApplicationDocumentsDirectory();
+          final npsDir = Directory('${fallbackDir.path}/NPS');
+          if (!await npsDir.exists()) {
+            await npsDir.create(recursive: true);
+          }
+          return npsDir;
+        }
+      }
+      return dir;
+    } else if (Platform.isIOS) {
+      final Directory dir = await getApplicationDocumentsDirectory();
+      final npsDir = Directory('${dir.path}/NPS');
+      if (!await npsDir.exists()) {
+        await npsDir.create(recursive: true);
+      }
+      return npsDir;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("CSV Exported: parking_${tabLabel.toLowerCase().replaceAll(' ', '_')}_report.csv"),
-        backgroundColor: AppTheme.success,
-      ),
-    );
+    return null;
   }
 
-  void _handleExportPDF(BuildContext context, String tabLabel, List<dynamic> rows) {
+  Future<void> _handleExportCSV(BuildContext context, String tabLabel, List<dynamic> rows) async {
     if (rows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No records to export")),
       );
       return;
     }
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isExporting = true);
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() => _isExporting = false);
+
+    try {
+      final dir = await _getNpsDirectory();
+      if (dir == null) throw Exception("Could not access storage directory");
+
+      final fileName = "parking_${tabLabel.toLowerCase().replaceAll(' ', '_')}_report_${DateTime.now().millisecondsSinceEpoch}.csv";
+      final file = File('${dir.path}/$fileName');
+
+      final headers = (rows[0] as Map<String, dynamic>).keys.toList();
+      String csv = headers.join(',') + '\n';
+      
+      for (var row in rows) {
+        final rowMap = row as Map<String, dynamic>;
+        final values = headers.map((h) {
+          final val = rowMap[h]?.toString().replaceAll('"', '""') ?? '';
+          return '"$val"';
+        }).toList();
+        csv += values.join(',') + '\n';
+      }
+
+      await file.writeAsString(csv);
+
       if (mounted) {
-        messenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("PDF Exported: parking_${tabLabel.toLowerCase().replaceAll(' ', '_')}_summary.pdf"),
+            content: Text("Saved to: ${file.path}"),
             backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to export: $e"), backgroundColor: AppTheme.error),
+        );
+      }
+    }
+  }
+
+  void _handlePrint(BuildContext context, String tabLabel, Map<String, dynamic>? summary, List<dynamic> rows) async {
+    if (rows.isEmpty && summary == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data to print')),
+      );
+      return;
+    }
+    try {
+      await PrintingService.printAdminReport(context, tabLabel, summary, rows);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Print failed: ${e.toString()}'), backgroundColor: AppTheme.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleExportPDF(BuildContext context, String tabLabel, List<dynamic> rows) async {
+    if (rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No records to export')),
+      );
+      return;
+    }
+    
+    setState(() => _isExporting = true);
+
+    try {
+      final dir = await _getNpsDirectory();
+      if (dir == null) throw Exception("Could not access storage directory");
+
+      final doc = pw.Document();
+      final headers = (rows[0] as Map<String, dynamic>).keys.toList();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Text('NGEWA PARKING SYSTEM - ${tabLabel.toUpperCase()} REPORT', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text('Printed: ${DateFormat('dd MMM yyyy HH:mm').format(DateTime.now())}'),
+              pw.SizedBox(height: 20),
+              pw.TableHelper.fromTextArray(
+                context: context,
+                headers: headers.map((h) => h.replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(1)}').trim().toUpperCase()).toList(),
+                data: rows.map((row) {
+                  final rowMap = row as Map<String, dynamic>;
+                  return headers.map((h) => rowMap[h]?.toString() ?? '').toList();
+                }).toList(),
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5))),
+              ),
+            ];
+          },
+        )
+      );
+
+      final fileName = "parking_${tabLabel.toLowerCase().replaceAll(' ', '_')}_report_${DateTime.now().millisecondsSinceEpoch}.pdf";
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(await doc.save());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Saved to: ${file.path}"),
+            backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to export: $e"), backgroundColor: AppTheme.error),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
   }
 
   @override
@@ -592,7 +740,32 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         ),
         const SizedBox(height: 12),
         _buildTrafficPieChartCard(vehicleDistribution),
+        const SizedBox(height: 20),
+
+        // Print Overview Button
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            icon: const Icon(LucideIcons.printer, size: 16),
+            label: const Text('Print Overview', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            onPressed: () => _handlePrint(
+              context,
+              'Overview Report',
+              keyMetrics.map((k, v) => MapEntry(k, v?.toString() ?? '—')),
+              vehicleDistribution.isEmpty ? [] : vehicleDistribution,
+            ),
+          ),
+        ),
+
         const SizedBox(height: 32),
+
       ],
     );
   }
@@ -905,6 +1078,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final currentTabConfig = _reportTabs.firstWhere((t) => t['id'] == _activeTabId);
     final tabLabel = currentTabConfig['label'] as String;
 
+    // Special layout for Financials tab
+    if (_activeTabId == 'financial') {
+      return _buildFinancialsContent(summary, rows, tabLabel);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -943,6 +1121,23 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   onPressed: () => _handleExportCSV(context, tabLabel, rows),
                 ),
                 const SizedBox(width: 8),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary(context),
+                    backgroundColor: Theme.of(context).dividerColor.withOpacity(0.05),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: _isExporting
+                      ? const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5))
+                      : const Icon(LucideIcons.fileText, size: 14),
+                  label: Text(
+                    _isExporting ? '...' : 'PDF',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _isExporting ? null : () => _handleExportPDF(context, tabLabel, rows),
+                ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
@@ -951,18 +1146,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
-                  icon: _isExporting
-                      ? const SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white),
-                        )
-                      : const Icon(LucideIcons.fileText, size: 14),
-                  label: Text(
-                    _isExporting ? 'Exporting...' : 'PDF',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: _isExporting ? null : () => _handleExportPDF(context, tabLabel, rows),
+                  icon: const Icon(LucideIcons.printer, size: 14),
+                  label: const Text('Print', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  onPressed: () => _handlePrint(context, tabLabel, summary, rows),
                 ),
               ],
             ),
@@ -975,6 +1161,354 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  Widget _buildFinancialsContent(Map<String, dynamic>? summary, List<dynamic> rows, String tabLabel) {
+    final fmt = NumberFormat.decimalPattern();
+    final grossRevenue = (summary?['grossRevenue'] as num?)?.toDouble() ?? 0;
+    final totalExpenses = (summary?['totalExpenses'] as num?)?.toDouble() ?? 0;
+    final netProfit = (summary?['netProfit'] as num?)?.toDouble() ?? 0;
+    final isProfitable = netProfit >= 0;
+
+    // Separate rows into revenue and expense for the pie chart
+    final expenseRows = rows.where((r) => (r as Map)['type'] == 'EXPENSE').toList();
+    final revenueRows = rows.where((r) => (r as Map)['type'] == 'REVENUE').toList();
+
+    // Build pie sections for expense breakdown
+    List<PieChartSectionData> pieSections = [];
+    for (int i = 0; i < expenseRows.length; i++) {
+      final amt = (expenseRows[i]['amount'] as num?)?.toDouble() ?? 0;
+      pieSections.add(PieChartSectionData(
+        color: _pieColors[i % _pieColors.length],
+        value: amt,
+        title: totalExpenses > 0 ? '${((amt / totalExpenses) * 100).toStringAsFixed(0)}%' : '0%',
+        radius: 40,
+        titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+      ));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+
+        // 3 Big Summary Cards
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialCard(
+                'Gross Revenue',
+                'Tsh ${fmt.format(grossRevenue)}',
+                LucideIcons.trendingUp,
+                AppTheme.success,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildFinancialCard(
+                'Total Expenses',
+                'Tsh ${fmt.format(totalExpenses)}',
+                LucideIcons.trendingDown,
+                AppTheme.error,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isProfitable
+                  ? [const Color(0xFF10b981).withOpacity(0.15), const Color(0xFF059669).withOpacity(0.05)]
+                  : [const Color(0xFFef4444).withOpacity(0.15), const Color(0xFFdc2626).withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isProfitable ? AppTheme.success.withOpacity(0.3) : AppTheme.error.withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'NET PROFIT',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isProfitable ? AppTheme.success : AppTheme.error,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${isProfitable ? '+' : ''}Tsh ${fmt.format(netProfit)}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isProfitable ? AppTheme.success : AppTheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isProfitable ? '✓ Business is profitable' : '⚠ Expenses exceed revenue',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isProfitable ? AppTheme.success : AppTheme.error,
+                    ),
+                  ),
+                ],
+              ),
+              Icon(
+                isProfitable ? LucideIcons.circleCheck : LucideIcons.circleAlert,
+                size: 42,
+                color: isProfitable ? AppTheme.success.withOpacity(0.4) : AppTheme.error.withOpacity(0.4),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Expense Breakdown Pie Chart
+        if (expenseRows.isNotEmpty) ...[
+          Text(
+            'EXPENSE BREAKDOWN',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textSecondary(context),
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.15)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 160,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 3,
+                        centerSpaceRadius: 30,
+                        sections: pieSections,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: expenseRows.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final row = entry.value as Map;
+                      final cat = row['category']?.toString() ?? 'Other';
+                      final amt = (row['amount'] as num?)?.toDouble() ?? 0;
+                      final color = _pieColors[idx % _pieColors.length];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10, height: 10,
+                              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                cat,
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary(context),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              'Tsh ${fmt.format(amt)}',
+                              style: TextStyle(
+                                color: AppTheme.error,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // Revenue Sources
+        if (revenueRows.isNotEmpty) ...[
+          Text(
+            'REVENUE SOURCES',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textSecondary(context),
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.15)),
+            ),
+            child: Column(
+              children: revenueRows.map((row) {
+                final r = row as Map;
+                final cat = r['category']?.toString() ?? '';
+                final amt = (r['amount'] as num?)?.toDouble() ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.circleDollarSign, size: 18, color: AppTheme.success),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          cat,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary(context),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Tsh ${fmt.format(amt)}',
+                        style: const TextStyle(
+                          color: AppTheme.success,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // Export / Print bar
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.textSecondary(context),
+                backgroundColor: Theme.of(context).dividerColor.withOpacity(0.05),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(LucideIcons.fileSpreadsheet, size: 14),
+              label: const Text('CSV', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              onPressed: () => _handleExportCSV(context, tabLabel, rows),
+            ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.textSecondary(context),
+                backgroundColor: Theme.of(context).dividerColor.withOpacity(0.05),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: _isExporting
+                  ? const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5))
+                  : const Icon(LucideIcons.fileText, size: 14),
+              label: Text(
+                _isExporting ? '...' : 'PDF',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+              onPressed: _isExporting ? null : () => _handleExportPDF(context, tabLabel, rows),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              icon: const Icon(LucideIcons.printer, size: 14),
+              label: const Text('Print', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              onPressed: () => _handlePrint(context, tabLabel, summary, rows),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildFinancialCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              Icon(icon, color: color, size: 16),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -999,7 +1533,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           final capitalizedLabel = label[0].toUpperCase() + label.substring(1);
 
           String valStr = val.toString();
-          if (key.toLowerCase().contains('revenue') || key.toLowerCase().contains('paid')) {
+          final keyLower = key.toLowerCase();
+          if (keyLower.contains('revenue') || keyLower.contains('paid') || keyLower.contains('amount') || keyLower.contains('expense') || keyLower.contains('profit')) {
             if (val is num) {
               valStr = 'Tsh ${currencyFormatter.format(val)}';
             }
@@ -1024,9 +1559,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
-                    color: key.toLowerCase().contains('revenue') || key.toLowerCase().contains('paid')
+                    color: keyLower.contains('revenue') || keyLower.contains('paid') || (keyLower.contains('profit') && (val is num && val >= 0))
                         ? AppTheme.success
-                        : AppTheme.textPrimary(context),
+                        : keyLower.contains('expense') || (keyLower.contains('profit') && (val is num && val < 0))
+                            ? AppTheme.error
+                            : AppTheme.textPrimary(context),
                   ),
                 ),
               ],

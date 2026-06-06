@@ -2,6 +2,26 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { json, urlencoded } from 'express';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
+import { PrismaClient } from '@prisma/client';
+
+async function seedDefaultCategories() {
+  const prisma = new PrismaClient();
+  try {
+    const builtInCategories = ['Salary', 'Maintenance'];
+    for (const name of builtInCategories) {
+      await prisma.expenseCategory.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+      });
+    }
+    console.log('[Seed] Default expense categories ensured: Salary, Maintenance');
+  } catch (e) {
+    console.error('[Seed] Failed to seed default categories:', e);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,6 +39,11 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false,
   });
+
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+
+  // Seed built-in categories after server starts
+  await seedDefaultCategories();
 }
 void bootstrap();
+

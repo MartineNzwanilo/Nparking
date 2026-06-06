@@ -41,6 +41,8 @@ model User {
 
   sessions    ParkingSession[]
   accessLogs  AccessLog[]
+  recordedExpenses Expense[] @relation("RecordedExpenses")
+  salaryReceived   Expense[] @relation("SalaryReceived")
 }
 
 model AccessLog {
@@ -152,4 +154,26 @@ model Camera {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., "Salary", "Maintenance", "Utilities"
+  createdAt   DateTime @default(now())
+  expenses    Expense[]
+}
+
+model Expense {
+  id            String   @id @default(uuid())
+  amount        Float
+  description   String?
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  recordedById  String
+  recordedBy    User     @relation("RecordedExpenses", fields: [recordedById], references: [id])
+  paidToUserId  String?
+  paidToUser    User?    @relation("SalaryReceived", fields: [paidToUserId], references: [id])
+  date          DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

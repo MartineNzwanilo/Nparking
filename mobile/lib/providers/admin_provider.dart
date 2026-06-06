@@ -20,6 +20,10 @@ class AdminProvider extends ChangeNotifier {
   bool _isLoadingUsers = false;
   bool _isLoadingAccessLogs = false;
 
+  List<dynamic> _expenseCategories = [];
+  List<dynamic> _expenses = [];
+  bool _isLoadingExpenses = false;
+
   Map<String, dynamic>? get dashboardMetrics => _dashboardMetrics;
   List<dynamic> get cameras => _cameras;
   List<dynamic> get sites => _sites;
@@ -35,7 +39,10 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoadingSettings => _isLoadingSettings;
   bool get isLoadingUsers => _isLoadingUsers;
   bool get isLoadingAccessLogs => _isLoadingAccessLogs;
-  bool get isLoading => _isLoadingMetrics || _isLoadingCameras || _isLoadingSites || _isLoadingReports || _isLoadingSettings || _isLoadingUsers || _isLoadingAccessLogs;
+  List<dynamic> get expenseCategories => _expenseCategories;
+  List<dynamic> get expenses => _expenses;
+  bool get isLoadingExpenses => _isLoadingExpenses;
+  bool get isLoading => _isLoadingMetrics || _isLoadingCameras || _isLoadingSites || _isLoadingReports || _isLoadingSettings || _isLoadingUsers || _isLoadingAccessLogs || _isLoadingExpenses;
 
   String? _selectedSiteIdForSurveillance;
   String? get selectedSiteIdForSurveillance => _selectedSiteIdForSurveillance;
@@ -272,6 +279,55 @@ class AdminProvider extends ChangeNotifier {
     } finally {
       _isLoadingAccessLogs = false;
       notifyListeners();
+    }
+  }
+
+  // ─── Expenses ──────────────────────────────────────────────────────────────
+  Future<void> fetchExpenseCategories() async {
+    try {
+      _expenseCategories = await _apiService.get('/expenses/categories') as List<dynamic>;
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching expense categories: $e');
+    }
+  }
+
+  Future<void> createExpenseCategory(String name) async {
+    try {
+      final newCat = await _apiService.post('/expenses/categories', {'name': name});
+      _expenseCategories.add(newCat);
+      notifyListeners();
+    } catch (e) {
+      print('Error creating expense category: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> fetchExpenses({String? startDate, String? endDate}) async {
+    _isLoadingExpenses = true;
+    notifyListeners();
+    try {
+      String query = '';
+      if (startDate != null && endDate != null) {
+        query = '?startDate=$startDate&endDate=$endDate';
+      }
+      _expenses = await _apiService.get('/expenses$query') as List<dynamic>;
+    } catch (e) {
+      print('Error fetching expenses: $e');
+    } finally {
+      _isLoadingExpenses = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> createExpense(Map<String, dynamic> data) async {
+    try {
+      final newExp = await _apiService.post('/expenses', data);
+      _expenses.insert(0, newExp);
+      notifyListeners();
+    } catch (e) {
+      print('Error creating expense: $e');
+      rethrow;
     }
   }
 }

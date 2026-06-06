@@ -559,4 +559,62 @@ export class ReportService {
       },
     };
   }
+  // ─── 8. Financial Report ──────────────────────────────────────────────────────
+  async getFinancialReport(startDate?: string, endDate?: string, siteId?: string) {
+    const range = this.dateRange(startDate, endDate);
+    
+    // Revenue
+    const paymentWhere: any = { collectedAt: range };
+    if (siteId && siteId !== 'all') paymentWhere.session = { siteId };
+    
+    // Fines
+    const fineWhere: any = { checkIn: range, fineAmount: { gt: 0 } };
+    if (siteId && siteId !== 'all') fineWhere.siteId = siteId;
+
+    const payments = await this.prisma.payment.findMany({ where: paymentWhere });
+    const fineSessions = await this.prisma.parkingSession.findMany({ where: fineWhere, select: { fineAmount: true } });
+
+    const totalParkingRevenue = payments.reduce((s, p) => s + p.amount, 0);
+    const totalFinesRevenue = fineSessions.reduce((s, f) => s + (f.fineAmount ?? 0), 0);
+    const grossRevenue = totalParkingRevenue + totalFinesRevenue;
+
+    // Expenses (Global by date range)
+    const expenseWhere: any = { date: range };
+    const expenses = await this.prisma.expense.findMany({
+      where: expenseWhere,
+      include: { category: true }
+    });
+
+    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+    const netProfit = grossRevenue - totalExpenses;
+
+    // Group expenses by category
+    const expenseBreakdown: Record<string, number> = {};
+    expenses.forEach(e => {
+      const cat = e.category?.name ?? 'Other';
+      expenseBreakdown[cat] = (expenseBreakdown[cat] || 0) + e.amount;
+    });
+
+    const expenseRows = Object.entries(expenseBreakdown).map(([category, amount]) => ({
+      type: 'EXPENSE',
+      category,
+      amount
+    }));
+
+    // Add Revenue to rows for the breakdown table
+    const rows = [
+      { type: 'REVENUE', category: 'Parking Fees', amount: totalParkingRevenue },
+      { type: 'REVENUE', category: 'Overstay Fines', amount: totalFinesRevenue },
+      ...expenseRows
+    ];
+
+    return {
+      rows,
+      summary: {
+        grossRevenue,
+        totalExpenses,
+        netProfit
+      }
+    };
+  }
 }

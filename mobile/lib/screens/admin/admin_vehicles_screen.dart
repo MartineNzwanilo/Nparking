@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
+import '../../core/constants.dart';
 import '../../providers/vehicle_provider.dart';
 
 class AdminVehiclesScreen extends StatefulWidget {
@@ -256,11 +258,11 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              Expanded(child: _buildPhotoPlaceholder('Front View')),
+                              Expanded(child: _buildPhotoSlot('Front View', currentVehicle['frontImage'])),
                               const SizedBox(width: 8),
-                              Expanded(child: _buildPhotoPlaceholder('License Plate')),
+                              Expanded(child: _buildPhotoSlot('License Plate', currentVehicle['plateImage'])),
                               const SizedBox(width: 8),
-                              Expanded(child: _buildPhotoPlaceholder('Side/Back')),
+                              Expanded(child: _buildPhotoSlot('Side/Back', currentVehicle['sideImage'])),
                             ],
                           ),
                           const SizedBox(height: 40),
@@ -446,7 +448,8 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
     );
   }
 
-  Widget _buildPhotoPlaceholder(String label) {
+  Widget _buildPhotoSlot(String label, String? imagePath) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 80,
       decoration: BoxDecoration(
@@ -454,17 +457,37 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.15)),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(LucideIcons.camera, color: Colors.grey.withOpacity(0.6), size: 20),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: Colors.grey.withOpacity(0.8), fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
+      child: imagePath != null && imagePath.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: imagePath.startsWith('assets/')
+                  ? Image.asset(imagePath, fit: BoxFit.contain)
+                  : (imagePath.startsWith('/uploads') || imagePath.startsWith('http')
+                      ? Image.network(
+                          imagePath.startsWith('/uploads') ? '${ApiConstants.baseUrl}$imagePath' : imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(LucideIcons.imageOff, color: isDark ? Colors.white24 : Colors.black26, size: 20),
+                              const SizedBox(height: 6),
+                              Text('Failed to load', style: TextStyle(fontSize: 8, color: isDark ? Colors.white30 : Colors.black38)),
+                            ],
+                          ),
+                        )
+                      : Image.file(File(imagePath), fit: BoxFit.cover)),
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(LucideIcons.camera, color: Colors.grey.withOpacity(0.6), size: 20),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 10, color: Colors.grey.withOpacity(0.8), fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
     );
   }
 

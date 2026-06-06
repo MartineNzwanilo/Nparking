@@ -305,6 +305,138 @@ class PrintingService {
     }
   }
 
+  /// Strips non-ASCII / non-printable characters so ESC/POS printer doesn't reject the string.
+  static String _toAscii(String input) {
+    // Replace common Unicode punctuation with ASCII equivalents
+    return input
+        .replaceAll('\u2026', '...')  // ellipsis …
+        .replaceAll('\u2014', '-')    // em dash —
+        .replaceAll('\u2013', '-')    // en dash –
+        .replaceAll('\u2018', "'")   // left single quote '
+        .replaceAll('\u2019', "'")   // right single quote '
+        .replaceAll('\u201C', '"')   // left double quote "
+        .replaceAll('\u201D', '"')   // right double quote "
+        .replaceAll('\u00e9', 'e')   // é
+        .replaceAll('\u00e0', 'a')   // à
+        .replaceAllMapped(
+          RegExp(r'[^\x20-\x7E]'), // remove anything outside printable ASCII range
+          (_) => '?',
+        );
+  }
+
+  /// Prints any admin tabular report to the ESC/POS network printer.
+  /// [title] – e.g. "Daily Revenue", [summary] – key/value summary map,
+  /// [rows] – list of row maps from the backend report endpoint.
+  static Future<void> printAdminReport(
+    BuildContext context,
+    String title,
+    Map<String, dynamic>? summary,
+    List<dynamic> rows,
+  ) async {
+    try {
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm58, profile);
+      List<int> bytes = [];
+
+      bytes += generator.reset();
+
+      // ── Header ────────────────────────────────────────────────────────────
+      bytes += generator.text(
+        _toAscii('NGEWA PARKING SYSTEM'),
+        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size1),
+      );
+      bytes += generator.text(
+        _toAscii(title.toUpperCase()),
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      );
+      bytes += generator.text(
+        _toAscii('Printed: ${DateFormat('dd MMM yyyy HH:mm').format(DateTime.now())}'),
+        styles: const PosStyles(align: PosAlign.center),
+      );
+      bytes += generator.hr();
+      bytes += generator.feed(1);
+
+      // ── Summary Block ─────────────────────────────────────────────────────
+      if (summary != null && summary.isNotEmpty) {
+        bytes += generator.text('SUMMARY', styles: const PosStyles(bold: true));
+        bytes += generator.feed(1);
+        for (final entry in summary.entries) {
+          final label = _toAscii(
+            entry.key
+                .replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(1)}')
+                .trim()
+                .toUpperCase(),
+          );
+          final value = _toAscii(entry.value?.toString() ?? '-');
+          // Fixed-width: label 20 chars, value up to 12 chars
+          final labelPad = label.length > 20 ? label.substring(0, 20) : label.padRight(20);
+          final valuePad = value.length > 12 ? value.substring(value.length - 12) : value.padLeft(12);
+          bytes += generator.text('$labelPad$valuePad');
+        }
+        bytes += generator.hr();
+        bytes += generator.feed(1);
+      }
+
+      // ── Records ───────────────────────────────────────────────────────────
+      bytes += generator.text('RECORDS: ${rows.length}', styles: const PosStyles(bold: true));
+      bytes += generator.feed(1);
+
+      if (rows.isNotEmpty) {
+        final firstRow = rows[0] as Map<String, dynamic>;
+        final headers = firstRow.keys.toList();
+
+        // Print up to 3 columns on 58mm paper
+        final visibleHeaders = headers.take(3).toList();
+        final colWidth = (12 / visibleHeaders.length).floor();
+        final maxChars = colWidth * 4; // ESC/POS column width in characters
+
+        // Header row
+        bytes += generator.row(
+          visibleHeaders.map((h) {
+            final label = _toAscii(
+              h.replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(1)}').trim().toUpperCase(),
+            );
+            final abbr = label.length > maxChars ? label.substring(0, maxChars) : label;
+            return PosColumn(text: abbr, width: colWidth, styles: const PosStyles(bold: true));
+          }).toList(),
+        );
+        bytes += generator.hr(ch: '-');
+
+        // Data rows (max 50 to avoid extremely long prints)
+        for (final row in rows.take(50)) {
+          final rowMap = row as Map<String, dynamic>;
+          bytes += generator.row(
+            visibleHeaders.map((h) {
+              final raw = _toAscii(rowMap[h]?.toString() ?? '-');
+              final cell = raw.length > maxChars ? '${raw.substring(0, maxChars - 3)}...' : raw;
+              return PosColumn(text: cell, width: colWidth);
+            }).toList(),
+          );
+        }
+
+        if (rows.length > 50) {
+          bytes += generator.feed(1);
+          bytes += generator.text('... ${rows.length - 50} more records', styles: const PosStyles(align: PosAlign.center));
+        }
+      }
+
+      bytes += generator.hr();
+      bytes += generator.text(
+        'End of Report',
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      );
+      bytes += generator.feed(3);
+      bytes += generator.cut();
+
+      await _sendBytesToPrinters(context, bytes);
+    } catch (e) {
+      debugPrint('[PrintingService] Failed to print admin report: $e');
+      throw Exception('Failed to print admin report: $e');
+    }
+  }
+
+
+
   // ─── Manual print — opens system dialog (called from ticket view) ────────
   static Future<void> showPrintDialog(
       BuildContext context, Map<String, dynamic> session) async {

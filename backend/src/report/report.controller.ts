@@ -82,4 +82,13 @@ export class ReportController {
   ) {
     return this.reportService.getOverstayReport(startDate, endDate, siteId);
   }
+
+  @Get('financial')
+  getFinancialReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('siteId') siteId?: string,
+  ) {
+    return this.reportService.getFinancialReport(startDate, endDate, siteId);
+  }
 }

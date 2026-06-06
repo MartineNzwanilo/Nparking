@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons8 } from "@/components/ui/icons8";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, getImageUrl } from "@/lib/utils";
 
 interface Session {
   id: string;
   checkIn: string;
   checkOut: string | null;
-  amount: number | null;
+  amountDue: number | null;
   propertiesLeft?: string | null;
   site: { name: string };
 }
@@ -38,9 +38,9 @@ interface VehicleDetailsModalProps {
 
 function ImageGallery({ vehicle }: { vehicle: Vehicle }) {
   const images = [
-    { label: "Front View", src: vehicle.frontImage, icon: "car" },
-    { label: "Plate",      src: vehicle.plateImage, icon: "road" },
-    { label: "Side View",  src: vehicle.sideImage,  icon: "car" },
+    { label: "Front View", src: getImageUrl(vehicle.frontImage), icon: "car" },
+    { label: "Plate",      src: getImageUrl(vehicle.plateImage), icon: "road" },
+    { label: "Side View",  src: getImageUrl(vehicle.sideImage),  icon: "car" },
   ].filter(img => img.src);
 
   const [activeImg, setActiveImg] = useState<string | null>(
@@ -267,7 +267,7 @@ export function VehicleDetailsModal({ vehicle, isOpen, onClose }: VehicleDetails
                             </div>
                             <div className="text-right">
                               <p className="text-[13px] font-black text-foreground">
-                                {formatCurrency(session.amount || vehicle.category?.price || 0)}
+                                {formatCurrency(session.amountDue || vehicle.category?.price || 0)}
                               </p>
                               <span className={cn(
                                 "text-[9px] font-black uppercase tracking-widest",

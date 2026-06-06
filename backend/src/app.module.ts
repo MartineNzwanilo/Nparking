@@ -14,14 +14,16 @@ import { NotificationService } from './notification/notification.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { UploadModule } from './upload/upload.module';
+import { ExpenseModule } from './expense/expense.module';
 
 @Module({
   imports: [
     PrismaModule, AuthModule, VehicleModule, SessionModule, SiteModule, UserModule, ReportModule, CameraModule, DetectionModule, UploadModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads'), // Root directory of backend + uploads
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
+    ExpenseModule,
   ],
   controllers: [AppController],
   providers: [AppService, NotificationService],

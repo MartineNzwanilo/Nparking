@@ -7,6 +7,7 @@ import '../core/parking_i18n.dart';
 import '../core/global_popup.dart';
 import '../widgets/complex_animations.dart';
 import '../core/checkout_helper.dart';
+import '../core/constants.dart';
 import '../providers/vehicle_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/activity_provider.dart';
@@ -1662,7 +1663,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   children: [
                     imagePath!.startsWith('assets/') 
                         ? Image.asset(imagePath, fit: BoxFit.contain)
-                        : Image.file(File(imagePath), fit: BoxFit.cover),
+                        : (imagePath!.startsWith('/uploads') || imagePath!.startsWith('http')
+                            ? Image.network(
+                                imagePath!.startsWith('/uploads') ? '${ApiConstants.baseUrl}$imagePath' : imagePath!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Center(
+                                  child: Icon(LucideIcons.imageOff, color: Colors.grey, size: 20),
+                                ),
+                              )
+                            : Image.file(File(imagePath!), fit: BoxFit.cover)),
                     Positioned(
                       right: 4,
                       top: 4,
@@ -1720,10 +1729,23 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       imagePath,
                       fit: BoxFit.contain,
                     )
-                  : Image.file(
-                      File(imagePath),
-                      fit: BoxFit.cover,
-                    ),
+                  : (imagePath.startsWith('/uploads') || imagePath.startsWith('http')
+                      ? Image.network(
+                          imagePath.startsWith('/uploads') ? '${ApiConstants.baseUrl}$imagePath' : imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(LucideIcons.imageOff, color: isDark ? Colors.white24 : Colors.black26, size: 20),
+                              const SizedBox(height: 6),
+                              Text('Failed to load', style: TextStyle(fontSize: 8, color: isDark ? Colors.white30 : Colors.black38)),
+                            ],
+                          ),
+                        )
+                      : Image.file(
+                          File(imagePath),
+                          fit: BoxFit.cover,
+                        )),
             )
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,

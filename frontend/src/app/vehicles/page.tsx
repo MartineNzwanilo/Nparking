@@ -13,7 +13,7 @@ interface Session {
   id: string;
   checkIn: string;
   checkOut: string | null;
-  amount: number | null;
+  amountDue: number | null;
   propertiesLeft?: string | null;
   site: { name: string };
 }
@@ -190,7 +190,7 @@ export default function VehiclesPage() {
                         {latestSession ? calculateDuration(latestSession.checkIn, latestSession.checkOut) : "-"}
                     </td>
                     <td className="px-6 py-4 text-[13px] font-black text-foreground">
-                        {latestSession ? formatCurrency(latestSession.amount || vehicle.category?.price || 0) : "-"}
+                        {latestSession ? formatCurrency(latestSession.amountDue || vehicle.category?.price || 0) : "-"}
                     </td>
                     <td className="px-6 py-4">
                         {latestSession ? (
