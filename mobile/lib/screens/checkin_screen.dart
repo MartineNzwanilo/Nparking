@@ -275,6 +275,62 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
+                                  _buildInputField(
+                                    _plateController,
+                                    context.t.tr('plateNumberLabel'),
+                                    LucideIcons.hash,
+                                    requiredField: true,
+                                    textCapitalization: TextCapitalization.characters,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Consumer<VehicleProvider>(
+                                    builder: (context, provider, child) {
+                                      final categories = provider.categories
+                                          .map((c) => (c['name'] ?? '').toString())
+                                          .where((name) => name.isNotEmpty)
+                                          .toList();
+                                      if (categories.isEmpty) {
+                                        categories.addAll(['Sedan/SUV', 'Bodaboda', 'Bajaji', 'Daladala', 'Lorry']);
+                                      }
+                                      if (!categories.contains(_selectedCategory)) {
+                                        categories.insert(0, _selectedCategory);
+                                      }
+                                      return DropdownButtonFormField<String>(
+                                        dropdownColor: Theme.of(context).cardColor,
+                                        style: TextStyle(color: AppTheme.textPrimary(context)),
+                                        isExpanded: true,
+                                        value: categories.contains(_selectedCategory) ? _selectedCategory : categories.first,
+                                        decoration: InputDecoration(
+                                          prefixIcon: Icon(LucideIcons.car, color: isDark ? Colors.white38 : Colors.black38),
+                                          labelText: context.t.tr('selectVehicleCategory'),
+                                          labelStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black38),
+                                          filled: true,
+                                          fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                            borderSide: BorderSide(
+                                              color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                                            ),
+                                          ),
+                                        ),
+                                        items: categories.map((c) => DropdownMenuItem(
+                                          value: c,
+                                          child: Text(c, overflow: TextOverflow.ellipsis),
+                                        )).toList(),
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            setStateDialog(() {
+                                              _selectedCategory = val;
+                                            });
+                                            setState(() {
+                                              _selectedCategory = val;
+                                            });
+                                          }
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
                                   Row(
                                     children: [
                                       Expanded(child: _buildInputField(_colorController, context.t.tr('vehicleColor'), LucideIcons.palette, isCompact: true)),
@@ -492,6 +548,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     List<TextInputFormatter>? inputFormatters,
     bool isCompact = false,
     int maxLines = 1,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextFormField(
@@ -499,6 +556,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       maxLines: maxLines,
+      textCapitalization: textCapitalization,
       style: TextStyle(color: AppTheme.textPrimary(context), fontSize: isCompact ? 13 : 14),
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: isDark ? Colors.white38 : Colors.black38, size: isCompact ? 18 : 22),
