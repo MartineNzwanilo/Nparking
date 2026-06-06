@@ -31,7 +31,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     super.initState();
     final now = DateTime.now();
     _selectedDateRange = DateTimeRange(
-      start: DateTime(now.year, now.month, now.day),
+      start: DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30)),
       end: DateTime(now.year, now.month, now.day),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -613,10 +613,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     if (_selectedFilter == 'Check-Outs' && a['type'] != 'Check-Out') return false;
                     
                     if (_selectedDateRange != null) {
-                      final date = DateTime.tryParse(a['timestamp'] ?? '');
+                      final date = DateTime.tryParse(a['timestamp'] ?? '')?.toLocal();
                       if (date != null) {
-                        final start = _selectedDateRange!.start;
-                        final end = _selectedDateRange!.end.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+                        final start = DateTime(_selectedDateRange!.start.year, _selectedDateRange!.start.month, _selectedDateRange!.start.day, 0, 0, 0);
+                        final end = DateTime(_selectedDateRange!.end.year, _selectedDateRange!.end.month, _selectedDateRange!.end.day, 23, 59, 59, 999);
                         if (date.isBefore(start) || date.isAfter(end)) return false;
                       }
                     }

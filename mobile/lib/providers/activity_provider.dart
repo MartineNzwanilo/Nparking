@@ -16,16 +16,15 @@ class ActivityProvider extends ChangeNotifier {
     notifyListeners();
     
     try {
-      if (SyncService().status != SyncStatus.offline) {
-        String url = '/sessions/activity';
-        if (startDate != null && endDate != null) {
-          final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
-          url += '?startDate=${startDate.toIso8601String()}&endDate=${endOfDay.toIso8601String()}';
-        }
-        _activities = await _apiService.get(url);
+      String url = '/sessions/activity';
+      if (startDate != null && endDate != null) {
+        final startUtc = DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0).toUtc();
+        final endUtc = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999).toUtc();
+        url += '?startDate=${startUtc.toIso8601String()}&endDate=${endUtc.toIso8601String()}';
       }
+      _activities = await _apiService.get(url);
     } catch (e) {
-      print('Error fetching activities (offline): $e');
+      print('Error fetching activities: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
