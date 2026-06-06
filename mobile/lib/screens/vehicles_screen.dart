@@ -609,17 +609,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   // ─── Dedicated check-in dialog for the vehicles screen ─────────────────
   void _showVehiclesCheckInDialog(BuildContext context, Map<String, dynamic> vehicle) {
-    final propertiesController = TextEditingController();
-    final emailController = TextEditingController(text: vehicle['email'] ?? '');
-    bool? overrideSms;
-    bool? overrideEmail;
-    bool? overridePrint;
-
-    final auth = context.read<AuthProvider>();
-    bool initSms = auth.autoSendSms;
-    bool initEmail = auth.autoSendEmail;
-    bool initPrint = true; // ALWAYS default to true to ensure printing
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showGeneralDialog(
@@ -629,360 +618,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       barrierColor: Colors.black.withOpacity(isDark ? 0.85 : 0.65),
       transitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (context, anim1, anim2) {
-        return StatefulBuilder(
-          builder: (context, setDs) {
-            bool sms = overrideSms ?? initSms;
-            bool email = overrideEmail ?? initEmail;
-            bool autoPrint = overridePrint ?? initPrint;
-
-            Widget _toggleChip(IconData icon, String label, bool active, ValueChanged<bool> onChanged) {
-              return GestureDetector(
-                onTap: () => onChanged(!active),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? AppTheme.primary.withOpacity(0.18)
-                        : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04)),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: active ? AppTheme.primary.withOpacity(0.6) : Colors.transparent,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, color: active ? AppTheme.primary : (isDark ? Colors.white38 : Colors.black38), size: 20),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: active ? AppTheme.primary : (isDark ? Colors.white38 : Colors.black38),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return AnimatedPadding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              child: Center(
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.92,
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: AppTheme.primary.withOpacity(0.2),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primary.withOpacity(0.1),
-                          blurRadius: 40,
-                          spreadRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Header
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(LucideIcons.logIn, color: AppTheme.primary, size: 18),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      context.t.tr('checkIn'),
-                                      style: TextStyle(
-                                        color: AppTheme.textPrimary(context),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    Text(
-                                      vehicle['plateNumber'] ?? '',
-                                      style: TextStyle(
-                                        color: AppTheme.primary,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 13,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(LucideIcons.x, color: isDark ? Colors.white54 : Colors.black45, size: 20),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Body
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Properties Left
-                              Text(
-                                'PROPERTIES LEFT IN VEHICLE',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary(context).withOpacity(0.6),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: propertiesController,
-                                maxLines: 2,
-                                style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
-                                decoration: InputDecoration(
-                                  hintText: 'e.g. Laptop bag, umbrella, documents…',
-                                  hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26, fontSize: 12),
-                                  prefixIcon: Icon(LucideIcons.package, color: isDark ? Colors.white38 : Colors.black38, size: 18),
-                                  filled: true,
-                                  fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(
-                                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
-                                    ),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Email for ticket
-                              Text(
-                                'SEND TICKET TO EMAIL',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary(context).withOpacity(0.6),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
-                                decoration: InputDecoration(
-                                  hintText: 'driver@example.com (optional)',
-                                  hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26, fontSize: 12),
-                                  prefixIcon: Icon(LucideIcons.mail, color: isDark ? Colors.white38 : Colors.black38, size: 18),
-                                  filled: true,
-                                  fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(
-                                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
-                                    ),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Notification toggles
-                              Text(
-                                'NOTIFICATIONS',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary(context).withOpacity(0.6),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _toggleChip(LucideIcons.messageSquare, 'SMS', sms, (val) => setDs(() => overrideSms = val)),
-                                  _toggleChip(LucideIcons.mail, 'EMAIL', email, (val) => setDs(() => overrideEmail = val)),
-                                  _toggleChip(LucideIcons.printer, 'PRINT', autoPrint, (val) => setDs(() => overridePrint = val)),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Confirm button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primary,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  ),
-                                  icon: const Icon(LucideIcons.logIn, size: 18),
-                                  label: Text(
-                                    context.t.tr('checkIn'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                  ),
-                                  onPressed: () async {
-                                    // Capture the scaffold context BEFORE popping the dialog
-                                    final scaffoldContext = context;
-                                    Navigator.pop(context);
-                                    final provider = scaffoldContext.read<VehicleProvider>();
-                                    final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
-                                    final amount = (vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
-                                    try {
-                                      final session = await provider.checkInVehicle(
-                                        vehicle['plateNumber'],
-                                        category,
-                                        amount,
-                                        driverEmail: emailController.text.trim(),
-                                        autoSendEmail: overrideEmail ?? initEmail,
-                                        autoSendSms: overrideSms ?? initSms,
-                                        propertiesLeft: propertiesController.text.trim(),
-                                      );
-
-                                      // Inject the vehicle data into session so the receipt can print Plate and Category correctly
-                                      if (session['vehicle'] == null) {
-                                        session['vehicle'] = vehicle;
-                                      }
-
-                                      if (scaffoldContext.mounted) {
-                                        final shouldPrint = overridePrint ?? initPrint;
-                                        if (shouldPrint) {
-                                          PrintingService.printTicket(scaffoldContext, session).catchError((err) {
-                                            print('Auto-print failed: $err');
-                                          });
-                                          ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                                            SnackBar(
-                                              content: Text('${vehicle['plateNumber']} Checked In & Printed Successfully.'),
-                                              backgroundColor: AppTheme.success,
-                                            ),
-                                          );
-                                        } else {
-                                          // Show the ticket dialog with print option only if not auto-printing
-                                          showDialog(
-                                            context: scaffoldContext,
-                                            builder: (ctx) => AlertDialog(
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                              title: Row(
-                                                children: [
-                                                  Container(
-                                                    padding: const EdgeInsets.all(8),
-                                                    decoration: BoxDecoration(
-                                                      color: AppTheme.success.withOpacity(0.12),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: const Icon(LucideIcons.checkCircle, color: AppTheme.success, size: 20),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  Text(
-                                                    scaffoldContext.t.tr('checkInSuccess'),
-                                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ],
-                                              ),
-                                              content: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    '${vehicle['plateNumber']} has been checked in successfully.',
-                                                    style: const TextStyle(fontSize: 14),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  const Text(
-                                                    'Would you like to print the entry ticket?',
-                                                    style: TextStyle(fontSize: 13),
-                                                  ),
-                                                ],
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(ctx),
-                                                  child: const Text('No, Close'),
-                                                ),
-                                                ElevatedButton.icon(
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: AppTheme.primary,
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                  ),
-                                                  icon: const Icon(LucideIcons.printer, size: 16, color: Colors.white),
-                                                  onPressed: () async {
-                                                    try {
-                                                      Navigator.pop(ctx);
-                                                      await PrintingService.printTicket(scaffoldContext, session);
-                                                    } catch (e) {
-                                                      if (scaffoldContext.mounted) {
-                                                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                                                          SnackBar(content: Text('Printing failed: $e'), backgroundColor: AppTheme.error),
-                                                        );
-                                                      }
-                                                    }
-                                                  },
-                                                  label: const Text('Print Ticket', style: TextStyle(color: Colors.white)),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    } catch (_) {
-                                      if (scaffoldContext.mounted) {
-                                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                                          SnackBar(content: Text(scaffoldContext.t.tr('failedCheckInVehicle'))),
-                                        );
-                                      }
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
+        return _VehiclesCheckInDialogContent(vehicle: vehicle, scaffoldContext: context);
       },
       transitionBuilder: (context, anim1, anim2, child) {
         return FadeTransition(
@@ -2107,5 +1743,586 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               ],
             ),
     );
+  }
+}
+
+class _VehiclesCheckInDialogContent extends StatefulWidget {
+  final Map<String, dynamic> vehicle;
+  final BuildContext scaffoldContext;
+
+  const _VehiclesCheckInDialogContent({
+    required this.vehicle,
+    required this.scaffoldContext,
+  });
+
+  @override
+  State<_VehiclesCheckInDialogContent> createState() => _VehiclesCheckInDialogContentState();
+}
+
+class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogContent> {
+  final List<PropertyItem> dialogProperties = [];
+  late final TextEditingController emailController;
+  bool? overrideSms;
+  bool? overrideEmail;
+  bool? overridePrint;
+
+  @override
+  void initState() {
+    super.initState();
+    emailController = TextEditingController(text: widget.vehicle['email'] ?? '');
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    for (final item in dialogProperties) {
+      item.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    bool initSms = auth.autoSendSms;
+    bool initEmail = auth.autoSendEmail;
+    bool initPrint = true; // ALWAYS default to true to ensure printing
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    bool sms = overrideSms ?? initSms;
+    bool email = overrideEmail ?? initEmail;
+    bool autoPrint = overridePrint ?? initPrint;
+
+    Widget _toggleChip(IconData icon, String label, bool active, ValueChanged<bool> onChanged) {
+      return GestureDetector(
+        onTap: () => onChanged(!active),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: active
+                ? AppTheme.primary.withOpacity(0.18)
+                : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: active ? AppTheme.primary.withOpacity(0.6) : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: active ? AppTheme.primary : (isDark ? Colors.white38 : Colors.black38), size: 20),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: active ? AppTheme.primary : (isDark ? Colors.white38 : Colors.black38),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget _buildPropertiesSection() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PROPERTIES LEFT IN VEHICLE',
+                style: TextStyle(
+                  color: AppTheme.textSecondary(context).withOpacity(0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    dialogProperties.add(PropertyItem(item: '', brand: '', quantity: 1));
+                  });
+                },
+                icon: const Icon(Icons.add, size: 14, color: AppTheme.primary),
+                label: const Text(
+                  "Add Item",
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          if (dialogProperties.isEmpty) ...[
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  dialogProperties.add(PropertyItem(item: '', brand: '', quantity: 1));
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.02),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(LucideIcons.package, color: isDark ? Colors.white30 : Colors.black38, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Tap to add properties left in vehicle",
+                      style: TextStyle(
+                        color: isDark ? Colors.white38 : Colors.black38,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            ...List.generate(dialogProperties.length, (index) {
+              final item = dialogProperties[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: item.itemController,
+                        style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 12),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: "Item (e.g. Phone)",
+                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38, fontSize: 11),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.02),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: item.brandController,
+                        style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 12),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: "Brand (e.g. iPhone)",
+                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38, fontSize: 11),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.02),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      icon: Icon(Icons.remove, size: 14, color: isDark ? Colors.white54 : Colors.black54),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                      onPressed: () {
+                        if (item.quantity > 1) {
+                          setState(() {
+                            item.quantity--;
+                          });
+                        }
+                      },
+                    ),
+                    SizedBox(
+                      width: 14,
+                      child: Text(
+                        "${item.quantity}",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary(context),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.add, size: 14, color: isDark ? Colors.white54 : Colors.black54),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                      onPressed: () {
+                        setState(() {
+                          item.quantity++;
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 16),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: () {
+                        setState(() {
+                          dialogProperties.removeAt(index);
+                          item.dispose();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
+      );
+    }
+
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      child: Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.92,
+            constraints: const BoxConstraints(maxWidth: 480),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: AppTheme.primary.withOpacity(0.2),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  blurRadius: 40,
+                  spreadRadius: 8,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(LucideIcons.logIn, color: AppTheme.primary, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.t.tr('checkIn'),
+                              style: TextStyle(
+                                color: AppTheme.textPrimary(context),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              widget.vehicle['plateNumber'] ?? '',
+                              style: TextStyle(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(LucideIcons.x, color: isDark ? Colors.white54 : Colors.black45, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Body
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Properties Left
+                          _buildPropertiesSection(),
+                          const SizedBox(height: 16),
+
+                          // Email for ticket
+                          Text(
+                            'SEND TICKET TO EMAIL',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary(context).withOpacity(0.6),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'driver@example.com (optional)',
+                              hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26, fontSize: 12),
+                              prefixIcon: Icon(LucideIcons.mail, color: isDark ? Colors.white38 : Colors.black38, size: 18),
+                              filled: true,
+                              fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Notification toggles
+                          Text(
+                            'NOTIFICATIONS',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary(context).withOpacity(0.6),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _toggleChip(LucideIcons.messageSquare, 'SMS', sms, (val) => setState(() => overrideSms = val)),
+                              _toggleChip(LucideIcons.mail, 'EMAIL', email, (val) => setState(() => overrideEmail = val)),
+                              _toggleChip(LucideIcons.printer, 'PRINT', autoPrint, (val) => setState(() => overridePrint = val)),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Confirm button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              icon: const Icon(LucideIcons.logIn, size: 18),
+                              label: Text(
+                                context.t.tr('checkIn'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                              onPressed: () async {
+                                final propString = dialogProperties
+                                    .where((item) => item.itemController.text.trim().isNotEmpty)
+                                    .map((item) {
+                                      final name = item.itemController.text.trim();
+                                      final brand = item.brandController.text.trim();
+                                      final qty = item.quantity;
+                                      if (brand.isNotEmpty) {
+                                        return "$qty $name ($brand)";
+                                      } else {
+                                        return "$qty $name";
+                                      }
+                                    })
+                                    .join(', ');
+
+                                // Capture the scaffold context BEFORE popping the dialog
+                                final scaffoldContext = widget.scaffoldContext;
+                                Navigator.pop(context);
+                                final provider = scaffoldContext.read<VehicleProvider>();
+                                final category = widget.vehicle['category']?['name'] ?? 'Sedan/SUV';
+                                final amount = (widget.vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
+                                try {
+                                  final session = await provider.checkInVehicle(
+                                    widget.vehicle['plateNumber'],
+                                    category,
+                                    amount,
+                                    driverEmail: emailController.text.trim(),
+                                    autoSendEmail: overrideEmail ?? initEmail,
+                                    autoSendSms: overrideSms ?? initSms,
+                                    propertiesLeft: propString,
+                                  );
+
+                                  // Inject the vehicle data into session so the receipt can print Plate and Category correctly
+                                  if (session['vehicle'] == null) {
+                                    session['vehicle'] = widget.vehicle;
+                                  }
+
+                                  if (scaffoldContext.mounted) {
+                                    final shouldPrint = overridePrint ?? initPrint;
+                                    if (shouldPrint) {
+                                      PrintingService.printTicket(scaffoldContext, session).catchError((err) {
+                                        print('Auto-print failed: $err');
+                                      });
+                                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                        SnackBar(
+                                          content: Text('${widget.vehicle['plateNumber']} Checked In & Printed Successfully.'),
+                                          backgroundColor: AppTheme.success,
+                                        ),
+                                      );
+                                    } else {
+                                      // Show the ticket dialog with print option only if not auto-printing
+                                      showDialog(
+                                        context: scaffoldContext,
+                                        builder: (ctx) => AlertDialog(
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                          title: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.success.withOpacity(0.12),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(LucideIcons.checkCircle, color: AppTheme.success, size: 20),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                scaffoldContext.t.tr('checkInSuccess'),
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '${widget.vehicle['plateNumber']} has been checked in successfully.',
+                                                style: const TextStyle(fontSize: 14),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              const Text(
+                                                'Would you like to print the entry ticket?',
+                                                style: TextStyle(fontSize: 13),
+                                              ),
+                                            ],
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx),
+                                              child: const Text('No, Close'),
+                                            ),
+                                            ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppTheme.primary,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              ),
+                                              icon: const Icon(LucideIcons.printer, size: 16, color: Colors.white),
+                                              onPressed: () async {
+                                                try {
+                                                  Navigator.pop(ctx);
+                                                  await PrintingService.printTicket(scaffoldContext, session);
+                                                } catch (e) {
+                                                  if (scaffoldContext.mounted) {
+                                                    ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                                      SnackBar(content: Text('Printing failed: $e'), backgroundColor: AppTheme.error),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              label: const Text('Print Ticket', style: TextStyle(color: Colors.white)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } catch (_) {
+                                  if (scaffoldContext.mounted) {
+                                    ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                      SnackBar(content: Text(scaffoldContext.t.tr('failedCheckInVehicle'))),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PropertyItem {
+  final TextEditingController itemController;
+  final TextEditingController brandController;
+  int quantity;
+
+  PropertyItem({
+    required String item,
+    required String brand,
+    this.quantity = 1,
+  }) : itemController = TextEditingController(text: item),
+       brandController = TextEditingController(text: brand);
+
+  void dispose() {
+    itemController.dispose();
+    brandController.dispose();
   }
 }

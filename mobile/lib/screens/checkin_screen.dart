@@ -45,7 +45,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final TextEditingController _driverPhoneController = TextEditingController();
   final TextEditingController _driverCompanyController = TextEditingController();
   final TextEditingController _driverEmailController = TextEditingController();
-  final TextEditingController _propertiesController = TextEditingController();
+  final List<PropertyItem> _properties = [];
 
   // Local transactional override flags (fallback to AuthProvider defaults)
   bool? _overridePrint;
@@ -75,7 +75,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _driverPhoneController.dispose();
     _driverCompanyController.dispose();
     _driverEmailController.dispose();
-    _propertiesController.dispose();
+    for (final item in _properties) {
+      item.dispose();
+    }
     super.dispose();
   }
 
@@ -584,6 +586,207 @@ class _CheckInScreenState extends State<CheckInScreen> {
     );
   }
 
+  Widget _buildPropertiesSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(LucideIcons.package, color: isDark ? Colors.white54 : Colors.black54, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    "PROPERTIES LEFT IN VEHICLE",
+                    style: TextStyle(
+                      color: AppTheme.textSecondary(context),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _properties.add(PropertyItem(item: '', brand: '', quantity: 1));
+                  });
+                },
+                icon: const Icon(Icons.add, size: 14, color: AppTheme.primary),
+                label: const Text(
+                  "Add Item",
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          if (_properties.isEmpty) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _properties.add(PropertyItem(item: '', brand: '', quantity: 1));
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.015) : Colors.black.withOpacity(0.015),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(LucideIcons.package, color: isDark ? Colors.white24 : Colors.black26, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Tap to add properties left in vehicle",
+                      style: TextStyle(
+                        color: isDark ? Colors.white30 : Colors.black38,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _properties.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final item = _properties[index];
+                return Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: item.itemController,
+                        style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: "Item (e.g. Phone)",
+                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38, fontSize: 11),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withOpacity(0.015) : Colors.black.withOpacity(0.015),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: item.brandController,
+                        style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 13),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: "Brand (e.g. iPhone)",
+                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38, fontSize: 11),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withOpacity(0.015) : Colors.black.withOpacity(0.015),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.remove, size: 16, color: isDark ? Colors.white54 : Colors.black54),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                          onPressed: () {
+                            if (item.quantity > 1) {
+                              setState(() {
+                                item.quantity--;
+                              });
+                            }
+                          },
+                        ),
+                        SizedBox(
+                          width: 16,
+                          child: Text(
+                            "${item.quantity}",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary(context),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.add, size: 16, color: isDark ? Colors.white54 : Colors.black54),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                          onPressed: () {
+                            setState(() {
+                              item.quantity++;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      onPressed: () {
+                        setState(() {
+                          _properties.removeAt(index);
+                          item.dispose();
+                        });
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<ShellNavigationProvider>();
@@ -733,7 +936,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
               const SizedBox(height: 20),
 
               // Properties Left in Vehicle Field
-              _buildInputField(_propertiesController, "Properties Left in Vehicle", LucideIcons.package, maxLines: 2),
+              _buildPropertiesSection(),
               const SizedBox(height: 20),
 
               // Glowing Override toggles card
@@ -821,6 +1024,20 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           amount = (cat['price'] as num).toDouble();
                         } catch (_) {}
 
+                        final propString = _properties
+                            .where((item) => item.itemController.text.trim().isNotEmpty)
+                            .map((item) {
+                              final name = item.itemController.text.trim();
+                              final brand = item.brandController.text.trim();
+                              final qty = item.quantity;
+                              if (brand.isNotEmpty) {
+                                return "$qty $name ($brand)";
+                              } else {
+                                return "$qty $name";
+                              }
+                            })
+                            .join(', ');
+
                         try {
                           final session = await provider.checkInVehicle(
                             _plateController.text.toUpperCase(), 
@@ -832,7 +1049,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             driverEmail: _driverEmailController.text.trim(),
                             autoSendEmail: _shouldEmail(context),
                             autoSendSms: _shouldSms(context),
-                            propertiesLeft: _propertiesController.text.trim(),
+                            propertiesLeft: propString,
                           );
                           
                           if (mounted) {
@@ -841,7 +1058,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             _driverPhoneController.clear();
                             _driverCompanyController.clear();
                             _driverEmailController.clear();
-                            _propertiesController.clear();
+                            for (final item in _properties) {
+                              item.dispose();
+                            }
+                            _properties.clear();
                             setState(() {
                               _isNewVehicle = true;
                               _selectedVehicle = null;
@@ -1371,4 +1591,22 @@ class QrPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class PropertyItem {
+  final TextEditingController itemController;
+  final TextEditingController brandController;
+  int quantity;
+
+  PropertyItem({
+    required String item,
+    required String brand,
+    this.quantity = 1,
+  }) : itemController = TextEditingController(text: item),
+       brandController = TextEditingController(text: brand);
+
+  void dispose() {
+    itemController.dispose();
+    brandController.dispose();
+  }
 }

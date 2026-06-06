@@ -8,6 +8,9 @@ class ActivityProvider extends ChangeNotifier {
   List<dynamic> _activities = [];
   bool _isLoading = false;
 
+  DateTime? _currentStartDate;
+  DateTime? _currentEndDate;
+
   List<dynamic> get activities => _activities;
   bool get isLoading => _isLoading;
 
@@ -15,13 +18,16 @@ class ActivityProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     
+    if (startDate != null) _currentStartDate = startDate;
+    if (endDate != null) _currentEndDate = endDate;
+
+    final start = _currentStartDate ?? DateTime.now().subtract(const Duration(days: 30));
+    final end = _currentEndDate ?? DateTime.now();
+
     try {
-      String url = '/sessions/activity';
-      if (startDate != null && endDate != null) {
-        final startUtc = DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0).toUtc();
-        final endUtc = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999).toUtc();
-        url += '?startDate=${startUtc.toIso8601String()}&endDate=${endUtc.toIso8601String()}';
-      }
+      final startUtc = DateTime(start.year, start.month, start.day, 0, 0, 0).toUtc();
+      final endUtc = DateTime(end.year, end.month, end.day, 23, 59, 59, 999).toUtc();
+      final url = '/sessions/activity?startDate=${startUtc.toIso8601String()}&endDate=${endUtc.toIso8601String()}';
       _activities = await _apiService.get(url);
     } catch (e) {
       print('Error fetching activities: $e');
