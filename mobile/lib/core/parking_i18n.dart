@@ -200,6 +200,10 @@ class ParkingI18n {
     'otpLabel': '6-Digit Code',
     'otpRequired': 'OTP is required',
     'validOtp': 'Enter a valid 6-digit OTP',
+    'editVehicle': 'Edit Vehicle Details',
+    'saveChanges': 'Save Changes',
+    'updateSuccess': 'Update Success',
+    'vehicleUpdated': 'Vehicle updated successfully',
   };
 
   static const Map<String, String> _sw = {
@@ -393,6 +397,10 @@ class ParkingI18n {
     'otpLabel': 'Msimbo wa tarakimu 6',
     'otpRequired': 'Msimbo unahitajika',
     'validOtp': 'Weka msimbo sahihi wa tarakimu 6',
+    'editVehicle': 'Hariri Taarifa za Chombo',
+    'saveChanges': 'Hifadhi Mabadiliko',
+    'updateSuccess': 'Mabadiliko Yamehifadhiwa',
+    'vehicleUpdated': 'Taarifa za chombo zimesasishwa kwa mafanikio',
   };
 
   String tr(String key, [Map<String, String> args = const {}]) {

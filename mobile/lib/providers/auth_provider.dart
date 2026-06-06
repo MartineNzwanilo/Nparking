@@ -41,6 +41,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _role == 'ADMIN';
 
   AuthProvider() {
+    ApiService.onUnauthorized = () => logout(remote: false);
     _restoreSession();
   }
 
@@ -99,19 +100,54 @@ class AuthProvider extends ChangeNotifier {
       await prefs.setBool(_userAutoPrintKey, _autoPrint);
       await prefs.setBool(_userAutoSendEmailKey, _autoSendEmail);
       await prefs.setBool(_userAutoSendSmsKey, _autoSendSms);
+      
+      // Save for offline login
+      await prefs.setString('auth_offline_identifier', identifier.trim());
+      await prefs.setString('auth_offline_password', password.trim());
+      await prefs.setString('auth_offline_token', _token!);
+      if (_userId != null) await prefs.setString('auth_offline_user_id', _userId!);
+      if (_name != null) await prefs.setString('auth_offline_user_name', _name!);
+      if (_phone != null) await prefs.setString('auth_offline_user_phone', _phone!);
+      if (_role != null) await prefs.setString('auth_offline_user_role', _role!);
+      if (_siteId != null) await prefs.setString('auth_offline_user_site_id', _siteId!);
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup') || e.toString().contains('TimeoutException')) {
+        final prefs = await SharedPreferences.getInstance();
+        final savedId = prefs.getString('auth_offline_identifier');
+        final savedPass = prefs.getString('auth_offline_password');
+        
+        if (savedId != null && savedPass != null && savedId == identifier.trim() && savedPass == password.trim()) {
+          _token = prefs.getString('auth_offline_token') ?? 'offline_token';
+          _userId = prefs.getString('auth_offline_user_id');
+          _name = prefs.getString('auth_offline_user_name');
+          _phone = prefs.getString('auth_offline_user_phone');
+          _role = prefs.getString('auth_offline_user_role');
+          _siteId = prefs.getString('auth_offline_user_site_id');
+          ApiService.setAuthToken(_token);
+          
+          await prefs.setString(_tokenKey, _token!);
+          if (_userId != null) await prefs.setString(_userIdKey, _userId!);
+          if (_name != null) await prefs.setString(_userNameKey, _name!);
+          if (_role != null) await prefs.setString(_userRoleKey, _role!);
+          return; // Successful offline login
+        } else {
+          throw Exception('Network unavailable and invalid offline credentials. Please connect to internet to login for the first time.');
+        }
+      }
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> logout() async {
-    try {
-      if (_token != null && _token!.isNotEmpty) {
+  Future<void> logout({bool remote = true}) async {
+    if (remote && _token != null && _token!.isNotEmpty) {
+      try {
         await _api.post('/auth/logout', {});
+      } catch (e) {
+        print('Backend logout failed: $e');
       }
-    } catch (e) {
-      print('Backend logout failed: $e');
     }
 
     _token = null;

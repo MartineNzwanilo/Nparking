@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/api_service.dart';
 import '../core/database_helper.dart';
+import 'printing_service.dart';
 
 enum SyncStatus { synced, syncing, pending, offline }
 
@@ -36,6 +37,7 @@ class SyncService extends ChangeNotifier {
   Future<void> _updateConnectionStatus(List<ConnectivityResult> results) async {
     final hasConnection = !results.contains(ConnectivityResult.none);
     if (hasConnection) {
+      PrintingService.processPendingPrintJobs();
       await syncPendingQueue();
     } else {
       _status = SyncStatus.offline;

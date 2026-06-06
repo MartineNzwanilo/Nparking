@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../core/theme.dart';
@@ -9,7 +9,8 @@ import '../providers/activity_provider.dart';
 import '../providers/vehicle_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/sync_service.dart';
-
+import '../core/database_helper.dart';
+import 'printer_settings_screen.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -194,184 +195,152 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 32),
               
               // Settings list container (Tesla style)
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardTheme.color,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
+              Material(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(24),
+                clipBehavior: Clip.antiAlias,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.12 : 0.04),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.12 : 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildActionTile(
-                      context,
-                      LucideIcons.refreshCw,
-                      context.t.tr('syncOfflineData'),
-                      context.t.tr('refreshLiveWatchmanData'),
-                      onTap: () async {
-                        final syncService = context.read<SyncService>();
-                        if (syncService.status == SyncStatus.offline) {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             SnackBar(content: Text(context.t.tr('offline'))),
-                           );
-                           return;
-                        }
-                        await syncService.syncPendingQueue();
-                        await Future.wait([
-                          context.read<VehicleProvider>().fetchVehicles(),
-                          context.read<ActivityProvider>().fetchActivities(),
-                        ]);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(context.t.tr('watchmanDataSynced'))),
-                        );
-                      },
-                    ),
-                    Divider(
-                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                      height: 1,
-                    ),
-                    _buildActionTile(
-                      context,
-                      LucideIcons.printer,
-                      context.t.tr('printerSettings'),
-                      context.t.tr('viewPrinterStatus'),
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          builder: (ctx) {
-                            return Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).scaffoldBackgroundColor,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                                border: Border.all(
-                                  color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
+                  child: Column(
+                    children: [
+                      _buildActionTile(
+                        context,
+                        LucideIcons.refreshCw,
+                        context.t.tr('syncOfflineData'),
+                        context.t.tr('refreshLiveWatchmanData'),
+                        onTap: () async {
+                          final syncService = context.read<SyncService>();
+                          if (syncService.status == SyncStatus.offline) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(content: Text(context.t.tr('offline'))),
+                             );
+                             return;
+                          }
+                          await syncService.syncPendingQueue();
+                          await Future.wait([
+                            context.read<VehicleProvider>().fetchVehicles(),
+                            context.read<ActivityProvider>().fetchActivities(),
+                          ]);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(context.t.tr('watchmanDataSynced'))),
+                          );
+                        },
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                        height: 1,
+                      ),
+                      _buildActionTile(
+                        context,
+                        LucideIcons.trash2,
+                        'Clear App Cache',
+                        'Remove all offline stored data',
+                        onTap: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Clear App Cache'),
+                              content: const Text('This will delete all offline data and pending syncs. Proceed?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true), 
+                                  child: const Text('Clear', style: TextStyle(color: Colors.red)),
                                 ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    context.t.tr('printerStatus'),
-                                    style: TextStyle(
-                                      color: AppTheme.textPrimary(context),
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    context.t.tr('printerReady'),
-                                    style: TextStyle(
-                                      color: AppTheme.textSecondary(context),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    context.t.tr('printerConnectionReady'),
-                                    style: TextStyle(
-                                      color: AppTheme.textSecondary(context),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 52,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppTheme.primary,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                      ),
-                                      onPressed: () {
-                                        final ticket = [
-                                          context.t.tr('receiptTitle'),
-                                          context.t.tr('printerReady'),
-                                          context.t.tr('printerConnectionReady'),
-                                          '${context.t.tr('roleLabel')}: ${auth.role ?? context.t.tr('gateOperator')}',
-                                          '${context.t.tr('siteLabel')}: ${auth.siteId ?? context.t.tr('unassigned')}',
-                                        ].join('\n');
-                                        Clipboard.setData(ClipboardData(text: ticket));
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(context.t.tr('testTicketCopied'))),
-                                        );
-                                      },
-                                      child: Text(
-                                        context.t.tr('copyTestTicket'),
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                    Divider(
-                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                      height: 1,
-                    ),
-                    _buildSwitchTile(
-                      context,
-                      LucideIcons.printer,
-                      'Auto-Print Entry Ticket',
-                      'Instantly print QR slip on check-in',
-                      auth.autoPrint,
-                      (val) => auth.updatePreferences(autoPrint: val),
-                    ),
-                    Divider(
-                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                      height: 1,
-                    ),
-                    _buildSwitchTile(
-                      context,
-                      LucideIcons.mail,
-                      'Auto-Send Email Ticket',
-                      'Deliver HTML receipts to drivers',
-                      auth.autoSendEmail,
-                      (val) => auth.updatePreferences(autoSendEmail: val),
-                    ),
-                    Divider(
-                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                      height: 1,
-                    ),
-                    _buildSwitchTile(
-                      context,
-                      LucideIcons.messageSquare,
-                      'Auto-Send Beem SMS',
-                      'Send dynamic details via Beem Africa',
-                      auth.autoSendSms,
-                      (val) => auth.updatePreferences(autoSendSms: val),
-                    ),
-                    Divider(
-                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                      height: 1,
-                    ),
-                    _buildActionTile(
-                      context,
-                      LucideIcons.moon,
-                      context.t.tr('darkMode'),
-                      context.t.tr('tapToSwitch'),
-                      onTap: () => context.read<ThemeProvider>().toggleTheme(),
-                    ),
-                  ],
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            await DatabaseHelper.instance.clearAll();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('App cache cleared successfully!')),
+                              );
+                              // Refresh live data
+                              context.read<VehicleProvider>().fetchVehicles();
+                              context.read<ActivityProvider>().fetchActivities();
+                            }
+                          }
+                        },
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                        height: 1,
+                      ),
+                      _buildActionTile(
+                        context,
+                        LucideIcons.printer,
+                        context.t.tr('printerSettings'),
+                        'Configure Network & Bluetooth Printers',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
+                          );
+                        },
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                        height: 1,
+                      ),
+                      _buildSwitchTile(
+                        context,
+                        LucideIcons.printer,
+                        'Auto-Print Entry Ticket',
+                        'Instantly print QR slip on check-in',
+                        auth.autoPrint,
+                        (val) => auth.updatePreferences(autoPrint: val),
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                        height: 1,
+                      ),
+                      _buildSwitchTile(
+                        context,
+                        LucideIcons.mail,
+                        'Auto-Send Email Ticket',
+                        'Deliver HTML receipts to drivers',
+                        auth.autoSendEmail,
+                        (val) => auth.updatePreferences(autoSendEmail: val),
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                        height: 1,
+                      ),
+                      _buildSwitchTile(
+                        context,
+                        LucideIcons.messageSquare,
+                        'Auto-Send Beem SMS',
+                        'Send dynamic details via Beem Africa',
+                        auth.autoSendSms,
+                        (val) => auth.updatePreferences(autoSendSms: val),
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
+                        height: 1,
+                      ),
+                      _buildActionTile(
+                        context,
+                        LucideIcons.moon,
+                        context.t.tr('darkMode'),
+                        context.t.tr('tapToSwitch'),
+                        onTap: () => context.read<ThemeProvider>().toggleTheme(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               

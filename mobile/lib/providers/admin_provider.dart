@@ -37,6 +37,16 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoadingAccessLogs => _isLoadingAccessLogs;
   bool get isLoading => _isLoadingMetrics || _isLoadingCameras || _isLoadingSites || _isLoadingReports || _isLoadingSettings || _isLoadingUsers || _isLoadingAccessLogs;
 
+  String? _selectedSiteIdForSurveillance;
+  String? get selectedSiteIdForSurveillance => _selectedSiteIdForSurveillance;
+
+  void setSelectedSiteIdForSurveillance(String? siteId) {
+    _selectedSiteIdForSurveillance = siteId;
+    _cameras = [];
+    _isLoadingCameras = true;
+    notifyListeners();
+  }
+
   Future<void> fetchDashboardMetrics({String? siteId}) async {
     _isLoadingMetrics = true;
     notifyListeners();

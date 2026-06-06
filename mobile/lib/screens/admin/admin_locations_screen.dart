@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/global_popup.dart';
@@ -206,32 +206,42 @@ class AdminLocationsScreen extends StatelessWidget {
             
           const SizedBox(height: 16),
           Divider(color: Theme.of(context).dividerColor.withOpacity(0.2)),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _showSiteFormDialog(context, site: site),
-                    icon: Icon(LucideIcons.edit3, size: 16, color: AppTheme.textSecondary(context)),
-                    label: Text('Edit', style: TextStyle(color: AppTheme.textSecondary(context))),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () => _confirmDeleteSite(context, site),
-                    icon: const Icon(LucideIcons.trash2, size: 16, color: AppTheme.error),
-                    label: const Text('Delete', style: TextStyle(color: AppTheme.error)),
-                  ),
-                ],
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  context.read<ShellNavigationProvider>().setIndex(2, maxIndex: 6);
-                },
-                icon: const Icon(LucideIcons.video, size: 16, color: AppTheme.primary),
-                label: const Text('Cameras', style: TextStyle(color: AppTheme.primary)),
-              ),
-            ],
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _showSiteFormDialog(context, site: site),
+                      icon: Icon(LucideIcons.edit3, size: 16, color: AppTheme.textSecondary(context)),
+                      label: Text('Edit', style: TextStyle(color: AppTheme.textSecondary(context))),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () => _confirmDeleteSite(context, site),
+                      icon: const Icon(LucideIcons.trash2, size: 16, color: AppTheme.error),
+                      label: const Text('Delete', style: TextStyle(color: AppTheme.error)),
+                    ),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    final adminProvider = context.read<AdminProvider>();
+                    adminProvider.setSelectedSiteIdForSurveillance(site['id']);
+                    adminProvider.fetchCameras(siteId: site['id']);
+                    context.read<ShellNavigationProvider>().setIndex(2, maxIndex: 6);
+                  },
+                  icon: const Icon(LucideIcons.video, size: 16, color: AppTheme.primary),
+                  label: const Text('Cameras', style: TextStyle(color: AppTheme.primary)),
+                ),
+              ],
+            ),
           ),
         ],
       ),

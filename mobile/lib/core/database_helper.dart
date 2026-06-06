@@ -20,9 +20,32 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 3,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE api_cache (
+          endpoint TEXT PRIMARY KEY,
+          response TEXT,
+          timestamp TEXT
+        )
+      ''');
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE print_queue (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          printerIp TEXT,
+          bytes TEXT,
+          timestamp TEXT
+        )
+      ''');
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -68,6 +91,23 @@ class DatabaseHelper {
         retryCount INTEGER
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE api_cache (
+        endpoint TEXT PRIMARY KEY,
+        response TEXT,
+        timestamp TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE print_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        printerIp TEXT,
+        bytes TEXT,
+        timestamp TEXT
+      )
+    ''');
   }
 
   Future<void> clearAll() async {
@@ -76,5 +116,7 @@ class DatabaseHelper {
     await db.delete('vehicles');
     await db.delete('sessions');
     await db.delete('sync_queue');
+    await db.delete('api_cache');
+    await db.delete('print_queue');
   }
 }

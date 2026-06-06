@@ -1,9 +1,10 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../core/parking_i18n.dart';
@@ -71,9 +72,33 @@ class _ScannerScreenState extends State<ScannerScreen> {
       try {
         _cameraController?.stopImageStream();
       } catch (_) {}
+      
+      _playWinningVibe();
+
       if (mounted) {
         Navigator.pop(context, result);
       }
+    }
+  }
+
+  Future<void> _playWinningVibe() async {
+    try {
+      // Use HapticFeedback.vibrate() which is highly compatible and noticeable on all Android devices
+      await HapticFeedback.vibrate();
+      await Future.delayed(const Duration(milliseconds: 200));
+      await HapticFeedback.vibrate();
+      await SystemSound.play(SystemSoundType.click);
+    } catch (e) {
+      debugPrint('Error playing success feedback: $e');
+    }
+  }
+
+  void _setFlash(bool turnOn) {
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      setState(() {
+        _isFlashOn = turnOn;
+      });
+      _cameraController!.setFlashMode(turnOn ? FlashMode.torch : FlashMode.off);
     }
   }
 
@@ -189,10 +214,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        if (widget.mode == ScannerMode.plate) {
+    if (widget.mode == ScannerMode.plate) {
+      showDialog(
+        context: context,
+        builder: (context) {
           return AlertDialog(
             backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
             title: const Text('Simulate Plate Scan'),
@@ -244,51 +269,78 @@ class _ScannerScreenState extends State<ScannerScreen> {
               ),
             ],
           );
-        } else {
-          // QR Mode Simulator - list active sessions
-          final provider = context.read<VehicleProvider>();
-          final insideVehicles = provider.vehicles.where((v) {
-            return v['sessions'] != null &&
-                v['sessions'].isNotEmpty &&
-                v['sessions'][0]['status'] == 'INSIDE';
-          }).toList();
+        },
+      );
+    } else {
+      // Full page manual checkout
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => const ManualCheckoutSheet(),
+      ).then((result) {
+        if (result != null && result is String) {
+          _returnResult(result);
+        }
+      });
+    }
+  }
 
-          return AlertDialog(
-            backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            title: const Text('Manual Checkout'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 250,
-              child: insideVehicles.isEmpty
-                  ? const Center(child: Text('No vehicles currently inside.'))
-                  : ListView.builder(
-                      itemCount: insideVehicles.length,
-                      itemBuilder: (context, idx) {
-                        final v = insideVehicles[idx];
-                        final session = v['sessions'][0];
-                        final plate = v['plateNumber'];
-                        final sessionId = session['id'];
+  void _showTypePlateDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textController = TextEditingController();
 
-                        return ListTile(
-                          title: Text(plate, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('ID: ${sessionId.substring(0, 8)}...'),
-                          trailing: const Icon(LucideIcons.scan, size: 18),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _returnResult(sessionId);
-                          },
-                        );
-                      },
-                    ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            context.t.tr('plateNumberLabel').split('(').first.trim(),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: textController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: context.t.tr('plateNumberLabel'),
+                  hintText: 'e.g. T123ABC',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                textCapitalization: TextCapitalization.characters,
               ),
             ],
-          );
-        }
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.t.tr('cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (textController.text.trim().isNotEmpty) {
+                  final plate = textController.text.trim().toUpperCase();
+                  Navigator.pop(context);
+                  _returnResult(plate);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                context.t.tr('awesome'),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
       },
     );
   }
@@ -335,22 +387,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
 
           Positioned(
-            top: 100,
-            left: 20,
-            child: IconButton(
-              icon: Icon(_isFlashOn ? LucideIcons.flashlightOff : LucideIcons.flashlight, color: Colors.white, size: 30),
-              onPressed: () {
-                if (_cameraController != null && _cameraController!.value.isInitialized) {
-                  setState(() {
-                    _isFlashOn = !_isFlashOn;
-                  });
-                  _cameraController!.setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
-                }
-              },
-            ),
-          ),
-
-          Positioned(
             top: 50,
             right: 20,
             child: TextButton.icon(
@@ -358,7 +394,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               label: Text(widget.mode == ScannerMode.plate ? 'Type Plate' : 'Manual Entry', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
               onPressed: () {
                 if (widget.mode == ScannerMode.plate) {
-                  _returnResult(''); // Navigates directly to checkin screen
+                  _showTypePlateDialog(context);
                 } else {
                   _showSimulateDialog(context);
                 }
@@ -372,13 +408,54 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
           
           Positioned(
-            bottom: 100,
+            bottom: 50,
             left: 0,
             right: 0,
             child: Column(
               children: [
-                Icon(widget.mode == ScannerMode.qr ? LucideIcons.qrCode : LucideIcons.scanLine, color: AppTheme.primary, size: 40),
-                const SizedBox(height: 16),
+                GestureDetector(
+                  onTapDown: (_) => _setFlash(true),
+                  onTapUp: (_) => _setFlash(false),
+                  onTapCancel: () => _setFlash(false),
+                  onLongPressStart: (_) => _setFlash(true),
+                  onLongPressEnd: (_) => _setFlash(false),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: _isFlashOn ? AppTheme.primary : Colors.black45,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _isFlashOn ? Colors.white : AppTheme.primary.withOpacity(0.6),
+                        width: 3,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_isFlashOn ? AppTheme.primary : Colors.transparent).withOpacity(0.5),
+                          blurRadius: 16,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      LucideIcons.flashlight,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isFlashOn ? 'RELEASE TO TURN OFF' : 'HOLD FOR LIGHT',
+                  style: TextStyle(
+                    color: _isFlashOn ? Colors.white : Colors.white60,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   widget.mode == ScannerMode.qr ? 'Point camera at Ticket QR Code' : 'Point camera at License Plate',
                   style: const TextStyle(
@@ -590,6 +667,206 @@ class _ScanningLaserState extends State<_ScanningLaser> with SingleTickerProvide
           ),
         );
       },
+    );
+  }
+}
+
+class ManualCheckoutSheet extends StatefulWidget {
+  const ManualCheckoutSheet({Key? key}) : super(key: key);
+
+  @override
+  State<ManualCheckoutSheet> createState() => _ManualCheckoutSheetState();
+}
+
+class _ManualCheckoutSheetState extends State<ManualCheckoutSheet> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<VehicleProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final insideVehicles = provider.vehicles.where((v) {
+      if (v['sessions'] == null || v['sessions'].isEmpty || v['sessions'][0]['status'] != 'INSIDE') {
+        return false;
+      }
+      if (_searchQuery.isEmpty) return true;
+      final plate = v['plateNumber']?.toString().toLowerCase() ?? '';
+      final session = v['sessions'][0];
+      final ticketId = session['id']?.toString().toLowerCase() ?? '';
+      return plate.contains(_searchQuery.toLowerCase()) || ticketId.contains(_searchQuery.toLowerCase());
+    }).toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Manual Checkout',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.x),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search Plate or Ticket No...',
+                prefixIcon: const Icon(LucideIcons.search),
+                filled: true,
+                fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (val) {
+                setState(() {
+                  _searchQuery = val;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: insideVehicles.isEmpty
+                ? const Center(child: Text('No vehicles found inside.'))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    itemCount: insideVehicles.length,
+                    itemBuilder: (context, index) {
+                      final v = insideVehicles[index];
+                      final session = v['sessions'][0];
+                      final plate = v['plateNumber'] ?? 'Unknown';
+                      final category = v['category']?['name'] ?? 'Unknown';
+                      
+                      final checkInDate = DateTime.tryParse(session['checkIn'] ?? '') ?? DateTime.now();
+                      final diffMs = DateTime.now().difference(checkInDate).inMilliseconds;
+                      final diffHrs = diffMs ~/ 3600000;
+                      final diffMins = (diffMs % 3600000) ~/ 60000;
+                      final durationStr = '${diffHrs}h ${diffMins}m';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        child: Material(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          clipBehavior: Clip.antiAlias,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            title: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    plate,
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  category,
+                                  style: const TextStyle(color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              )
+                            ],
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(LucideIcons.ticket, size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Ticket: ${session['id'] != null ? (session['id'].length > 8 ? session['id'].substring(0, 8).toUpperCase() : session['id'].toUpperCase()) : 'N/A'}',
+                                      style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(LucideIcons.clock, size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text('Duration: $durationStr', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          trailing: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.warning,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(LucideIcons.logOut, size: 16),
+                            label: const Text('Checkout'),
+                            onPressed: () {
+                              Navigator.pop(context, session['id']);
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  ),
+          ),
+        ],
+      ),
+    ),
     );
   }
 }

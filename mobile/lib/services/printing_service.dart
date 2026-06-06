@@ -5,42 +5,303 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/database_helper.dart';
 
 class PrintingService {
-  // ─── Silent Bluetooth ESC/POS print (auto-print, no dialog) ─────────────
-  static Future<void> printTicket(Map<String, dynamic> session) async {
+  static Future<bool> _isPrinterReachable(String ip) async {
+    String host = ip;
+    int port = 9100;
+    if (ip.contains(':')) {
+      final parts = ip.split(':');
+      host = parts[0];
+      if (parts.length > 1) {
+        port = int.tryParse(parts[1]) ?? 9100;
+      }
+    }
+
+    // Determine if it is a local LAN address
+    bool isLocal = false;
+    if (host.startsWith('192.168.') || host.startsWith('10.')) {
+      isLocal = true;
+    } else if (host.startsWith('172.')) {
+      final parts = host.split('.');
+      if (parts.length > 1) {
+        final second = int.tryParse(parts[1]);
+        if (second != null && second >= 16 && second <= 31) {
+          isLocal = true;
+        }
+      }
+    } else if (host.endsWith('.local') || host == 'localhost' || host == '127.0.0.1') {
+      isLocal = true;
+    }
+
+    // Local LAN pings fail quickly, while DNS lookups and WAN handshakes on cell data need more time (e.g. 3.5s)
+    final timeout = isLocal ? const Duration(seconds: 1) : const Duration(milliseconds: 3500);
+
     try {
-      // Check if Bluetooth is on and a printer is already connected/paired
+      final socket = await Socket.connect(host, port, timeout: timeout);
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ─── Unified ESC/POS Printer Sender ─────────────────────────────────────────
+  static Future<void> _sendBytesToPrinters(BuildContext? context, List<int> bytes) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Try to load new multiple network printers list
+      final String? printersJson = prefs.getString('network_printers_list');
+      List<dynamic> networkPrinters = [];
+      if (printersJson != null) {
+        networkPrinters = jsonDecode(printersJson);
+      } else {
+        // Fallback to legacy single IP
+        final String? networkIp = prefs.getString('network_printer_ip');
+        if (networkIp != null && networkIp.isNotEmpty) {
+          networkPrinters.add({
+            'ip': networkIp,
+            'name': 'Default Printer',
+            'isDefault': true,
+            'printSimultaneously': true,
+          });
+        }
+      }
+
+      bool printedOnNetwork = false;
+
+      if (networkPrinters.isNotEmpty) {
+        List<dynamic> targetPrinters = [];
+        
+        if (context != null) {
+          List<dynamic>? selectedList = await showDialog<List<dynamic>>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) {
+              // Only the default printer should be checked by default
+              final defaultPrinter = networkPrinters.firstWhere((p) => p['isDefault'] == true, orElse: () => networkPrinters.first);
+              List<dynamic> selectedPrinters = [defaultPrinter];
+
+              return StatefulBuilder(
+                builder: (context, setState) {
+                  return AlertDialog(
+                    title: const Text('Select Printers'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Tick the printers you want to print to:',
+                            style: TextStyle(fontSize: 13, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          ...networkPrinters.map((p) {
+                            final isSelected = selectedPrinters.any((item) => item['ip'] == p['ip']);
+                            return CheckboxListTile(
+                              title: Text(p['name'] ?? p['ip']),
+                              subtitle: Text(p['ip']),
+                              value: isSelected,
+                              activeColor: Theme.of(context).primaryColor,
+                              onChanged: (bool? checked) {
+                                setState(() {
+                                  if (checked == true) {
+                                    if (!selectedPrinters.any((item) => item['ip'] == p['ip'])) {
+                                      selectedPrinters.add(p);
+                                    }
+                                  } else {
+                                    selectedPrinters.removeWhere((item) => item['ip'] == p['ip']);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, null), // Cancel printing completely
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => Navigator.pop(ctx, selectedPrinters),
+                        child: Text(selectedPrinters.isEmpty ? 'Don\'t Print' : 'Print'),
+                      ),
+                    ],
+                  );
+                }
+              );
+            }
+          );
+
+          if (selectedList == null || selectedList.isEmpty) {
+            return; // Abort or skip printing
+          }
+
+          targetPrinters = selectedList;
+        } else {
+          // Silent automatic selection (background or non-context flows)
+          final simultaneousPrinters = networkPrinters.where((p) => p['printSimultaneously'] == true).toList();
+          if (simultaneousPrinters.isNotEmpty) {
+            targetPrinters = simultaneousPrinters;
+          } else {
+            final defaultPrinter = networkPrinters.firstWhere((p) => p['isDefault'] == true, orElse: () => networkPrinters.first);
+            targetPrinters = [defaultPrinter];
+          }
+        }
+
+        // Fire off requests to all target printers concurrently
+        List<Future<void>> printTasks = [];
+        for (var printer in targetPrinters) {
+          final ip = printer['ip'] as String;
+          printTasks.add(() async {
+            String host = ip;
+            int port = 9100;
+            if (ip.contains(':')) {
+              final parts = ip.split(':');
+              host = parts[0];
+              if (parts.length > 1) {
+                port = int.tryParse(parts[1]) ?? 9100;
+              }
+            }
+            debugPrint('[PrintingService] Attempting to print via Network (TCP) to $host:$port');
+            try {
+              final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 3));
+              socket.add(bytes);
+              await socket.flush();
+              socket.destroy();
+              debugPrint('[PrintingService] Ticket printed successfully on $host:$port');
+              printedOnNetwork = true;
+            } catch (e) {
+              debugPrint('[PrintingService] Network print failed to $host:$port: $e, adding to print_queue');
+              try {
+                final db = await DatabaseHelper.instance.database;
+                await db.insert('print_queue', {
+                  'printerIp': ip,
+                  'bytes': base64Encode(bytes),
+                  'timestamp': DateTime.now().toIso8601String(),
+                });
+              } catch (dbErr) {
+                debugPrint('[PrintingService] Failed to add print job to queue: $dbErr');
+              }
+            }
+          }());
+        }
+
+        await Future.wait(printTasks);
+      }
+
+      if (printedOnNetwork) {
+        return; // Success, skip Bluetooth
+      }
+
+      // 2. Fallback to Bluetooth
       final bool btEnabled = await PrintBluetoothThermal.bluetoothEnabled;
       if (!btEnabled) {
         debugPrint('[PrintingService] Bluetooth is off — skipping auto-print');
         return;
       }
 
-      // Look for a paired printer that is already bonded
-      final List<BluetoothInfo> devices =
-          await PrintBluetoothThermal.pairedBluetooths;
+      final List<BluetoothInfo> devices = await PrintBluetoothThermal.pairedBluetooths;
       if (devices.isEmpty) {
         debugPrint('[PrintingService] No paired Bluetooth printers found');
         return;
       }
 
-      // Connect to the first paired printer
       final BluetoothInfo printer = devices.first;
-      final bool connected =
-          await PrintBluetoothThermal.connect(macPrinterAddress: printer.macAdress);
+      final bool connected = await PrintBluetoothThermal.connect(macPrinterAddress: printer.macAdress);
       if (!connected) {
         debugPrint('[PrintingService] Could not connect to ${printer.name}');
         return;
       }
 
-      // Build ESC/POS receipt bytes
-      final List<int> bytes = await _buildEscPosBytes(session);
       await PrintBluetoothThermal.writeBytes(bytes);
       debugPrint('[PrintingService] Ticket printed on ${printer.name}');
     } catch (e) {
       debugPrint('[PrintingService] Auto-print failed: $e');
+    }
+  }
+
+  // ─── Direct Print Triggers ──────────────────────────────────────────────────
+  static Future<void> printTicket(BuildContext? context, Map<String, dynamic> session) async {
+    try {
+      final bytes = await _buildEscPosBytes(session);
+      await _sendBytesToPrinters(context, bytes);
+    } catch (e) {
+      debugPrint('[PrintingService] printTicket failed: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> printActivityReport(BuildContext? context, List<Map<String, dynamic>> activities) async {
+    try {
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm58, profile);
+      List<int> bytes = [];
+
+      bytes += generator.reset();
+
+      // Header
+      bytes += generator.text(
+        'NGEWA PARKING SYSTEM',
+        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size1),
+      );
+      bytes += generator.text(
+        'ACTIVITY REPORT',
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      );
+      bytes += generator.text(
+        'Printed: ${DateFormat('dd MMM yyyy HH:mm').format(DateTime.now())}',
+        styles: const PosStyles(align: PosAlign.center),
+      );
+      bytes += generator.hr();
+      bytes += generator.feed(1);
+
+      // Total count
+      bytes += generator.text('Total Records: ${activities.length}', styles: const PosStyles(bold: true));
+      bytes += generator.feed(1);
+
+      // Column Headers
+      bytes += generator.row([
+        PosColumn(text: 'Time', width: 3, styles: const PosStyles(bold: true)),
+        PosColumn(text: 'Plate', width: 4, styles: const PosStyles(bold: true)),
+        PosColumn(text: 'Action', width: 5, styles: const PosStyles(bold: true)),
+      ]);
+      bytes += generator.hr();
+
+      // Activity Rows
+      for (var act in activities) {
+        final timeStr = act['timestamp'] != null 
+            ? DateFormat('HH:mm').format(DateTime.tryParse(act['timestamp'].toString()) ?? DateTime.now()) 
+            : '';
+        final plate = act['title']?.toString() ?? '';
+        final action = act['type']?.toString() ?? '';
+        
+        bytes += generator.row([
+          PosColumn(text: timeStr, width: 3),
+          PosColumn(text: plate, width: 4),
+          PosColumn(text: action, width: 5),
+        ]);
+      }
+
+      bytes += generator.hr();
+      bytes += generator.feed(2);
+      bytes += generator.cut();
+
+      await _sendBytesToPrinters(context, bytes);
+    } catch (e) {
+      debugPrint('[PrintingService] Failed to print Activity Report: $e');
+      throw Exception('Failed to print activity report');
     }
   }
 
@@ -60,7 +321,7 @@ class PrintingService {
   static Future<List<int>> _buildEscPosBytes(
       Map<String, dynamic> session) async {
     final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm80, profile);
+    final generator = Generator(PaperSize.mm58, profile);
     List<int> bytes = [];
 
     final vehicle = session['vehicle'];
@@ -78,7 +339,13 @@ class PrintingService {
         DateFormat('dd MMM yyyy, hh:mm a').format(date);
     final num amount = session['amountDue'] ?? 0;
     final String ticketId = session['id'] ?? '';
-    final String driverName = session['driverName'] ?? '';
+    
+    // Fallback to vehicle's ownerName if driverName is not provided in session
+    String driverName = session['driverName'] ?? '';
+    if (driverName.trim().isEmpty && vehicle != null && vehicle['ownerName'] != null) {
+      driverName = vehicle['ownerName'];
+    }
+    
     final String driverPhone = session['driverPhone'] ?? '';
     final String propertiesLeft = session['propertiesLeft'] ?? '';
 
@@ -100,63 +367,20 @@ class PrintingService {
     );
     bytes += generator.hr();
 
-    // Ticket details
-    bytes += generator.row([
-      PosColumn(text: 'Ticket', width: 5),
-      PosColumn(
-          text: ticketId.length > 8
-              ? ticketId.substring(0, 8).toUpperCase()
-              : ticketId,
-          width: 7,
-          styles: const PosStyles(bold: true, align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Plate No.', width: 5),
-      PosColumn(
-          text: plate,
-          width: 7,
-          styles: const PosStyles(bold: true, align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Category', width: 5),
-      PosColumn(
-          text: category,
-          width: 7,
-          styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Date', width: 5),
-      PosColumn(
-          text: dateStr,
-          width: 7,
-          styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    if (driverName.isNotEmpty) {
-      bytes += generator.row([
-        PosColumn(text: 'Driver', width: 5),
-        PosColumn(
-            text: driverName,
-            width: 7,
-            styles: const PosStyles(align: PosAlign.right)),
-      ]);
+    // Ticket details with improved monospace left-alignment
+    bytes += generator.text('Ticket No: ${ticketId.length > 8 ? ticketId.substring(0, 8).toUpperCase() : ticketId}', styles: const PosStyles(bold: true));
+    bytes += generator.text('Plate No:  $plate', styles: const PosStyles(bold: true));
+    bytes += generator.text('Category:  $category');
+    bytes += generator.text('Date:      $dateStr');
+    
+    if (driverName.trim().isNotEmpty) {
+      bytes += generator.text('Driver:    $driverName');
     }
-    if (driverPhone.isNotEmpty) {
-      bytes += generator.row([
-        PosColumn(text: 'Phone', width: 5),
-        PosColumn(
-            text: driverPhone,
-            width: 7,
-            styles: const PosStyles(align: PosAlign.right)),
-      ]);
+    if (driverPhone.trim().isNotEmpty) {
+      bytes += generator.text('Phone:     $driverPhone');
     }
-    if (watchman.isNotEmpty) {
-      bytes += generator.row([
-        PosColumn(text: 'Watchman', width: 5),
-        PosColumn(
-            text: watchman,
-            width: 7,
-            styles: const PosStyles(align: PosAlign.right)),
-      ]);
+    if (watchman.trim().isNotEmpty) {
+      bytes += generator.text('Watchman:  $watchman');
     }
 
     if (propertiesLeft.isNotEmpty) {
@@ -170,20 +394,14 @@ class PrintingService {
     }
 
     bytes += generator.hr();
-    bytes += generator.row([
-      PosColumn(
-          text: 'FEE',
-          width: 5,
-          styles: const PosStyles(bold: true)),
-      PosColumn(
-          text: 'TZS ${amount.toStringAsFixed(0)}',
-          width: 7,
-          styles: const PosStyles(
-              bold: true,
-              align: PosAlign.right,
-              height: PosTextSize.size2,
-              width: PosTextSize.size2)),
-    ]);
+    bytes += generator.text(
+      'FEE: TZS ${amount.toStringAsFixed(0)}',
+      styles: const PosStyles(
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
     bytes += generator.hr();
 
     // QR Code with session ID
@@ -221,7 +439,17 @@ class PrintingService {
         DateFormat('dd MMM yyyy, hh:mm a').format(date);
     final num amount = session['amountDue'] ?? 0;
     final String ticketId = session['id'] ?? '';
-    final String driverName = session['driverName'] ?? 'N/A';
+    
+    // Fallback to vehicle's ownerName if driverName is not provided in session
+    String driverName = session['driverName'] ?? '';
+    if (driverName.trim().isEmpty || driverName == 'N/A') {
+      if (vehicle != null && vehicle['ownerName'] != null && vehicle['ownerName'].toString().trim().isNotEmpty) {
+        driverName = vehicle['ownerName'];
+      } else {
+        driverName = 'N/A';
+      }
+    }
+    
     final String driverPhone = session['driverPhone'] ?? 'N/A';
     final String driverCompany = session['driverCompany'] ?? 'N/A';
     final String? propertiesLeft = session['propertiesLeft'];
@@ -312,5 +540,47 @@ class PrintingService {
         ],
       ),
     );
+  }
+
+  static Future<void> processPendingPrintJobs() async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final queue = await db.query('print_queue', orderBy: 'timestamp ASC');
+      
+      if (queue.isEmpty) return;
+
+      for (var item in queue) {
+        final id = item['id'] as int;
+        final ip = item['printerIp'] as String;
+        final base64Bytes = item['bytes'] as String;
+        final bytes = base64Decode(base64Bytes);
+
+        String host = ip;
+        int port = 9100;
+        if (ip.contains(':')) {
+          final parts = ip.split(':');
+          host = parts[0];
+          if (parts.length > 1) {
+            port = int.tryParse(parts[1]) ?? 9100;
+          }
+        }
+
+        try {
+          debugPrint('[PrintingService] Attempting to print pending job $id to $host:$port');
+          final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 3));
+          socket.add(bytes);
+          await socket.flush();
+          socket.destroy();
+          
+          // If successful, delete from queue
+          await db.delete('print_queue', where: 'id = ?', whereArgs: [id]);
+          debugPrint('[PrintingService] Successfully printed and cleared pending job $id');
+        } catch (e) {
+          debugPrint('[PrintingService] Pending job $id to $host:$port still failing: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('[PrintingService] Error processing pending print jobs: $e');
+    }
   }
 }

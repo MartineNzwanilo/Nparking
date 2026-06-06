@@ -19,9 +19,11 @@ class VehicleProvider extends ChangeNotifier {
   String get overstayTimeLimit => _overstayTimeLimit;
   double get overstayFineAmount => _overstayFineAmount;
 
-  Future<void> fetchVehicles() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> fetchVehicles({bool background = false}) async {
+    if (!background) {
+      _isLoading = true;
+      notifyListeners();
+    }
     
     try {
       if (SyncService().status != SyncStatus.offline) {
@@ -37,23 +39,9 @@ class VehicleProvider extends ChangeNotifier {
         } catch (e) {
           print('Settings endpoint not found, using default 08:00 AM overstay rules.');
         }
-        
-        final db = await DatabaseHelper.instance.database;
-        await db.transaction((txn) async {
-          await txn.delete('categories');
-          for (var c in _categories) {
-            await txn.insert('categories', {
-              'id': c['id'] ?? c['name'],
-              'name': c['name'],
-              'price': c['price'] ?? 0,
-            });
-          }
-        });
       }
     } catch (e) {
-      print('Network failed, falling back to local storage: $e');
-      final db = await DatabaseHelper.instance.database;
-      _categories = await db.query('categories');
+      print('Failed to fetch vehicles: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -101,7 +89,22 @@ class VehicleProvider extends ChangeNotifier {
         if (finalSide != null && finalSide.isNotEmpty) 'sideImage': finalSide,
       };
 
-      if (SyncService().status == SyncStatus.offline) {
+      bool forceOffline = SyncService().status == SyncStatus.offline;
+      
+      if (!forceOffline) {
+        try {
+          final newVehicle = await _apiService.post('/vehicles', payload);
+          _vehicles.insert(0, newVehicle);
+        } catch (e) {
+          if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup') || e.toString().contains('TimeoutException')) {
+            forceOffline = true;
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      if (forceOffline) {
         final db = await DatabaseHelper.instance.database;
         await db.insert('sync_queue', {
           'endpoint': '/vehicles',
@@ -111,9 +114,12 @@ class VehicleProvider extends ChangeNotifier {
           'retryCount': 0,
         });
         SyncService().checkPendingItems();
-      } else {
-        final newVehicle = await _apiService.post('/vehicles', payload);
-        _vehicles.insert(0, newVehicle);
+        // Update local state
+        final mockVehicle = {
+          'id': 'offline_v_${DateTime.now().millisecondsSinceEpoch}',
+          ...payload,
+        };
+        _vehicles.insert(0, mockVehicle);
       }
       notifyListeners();
     } catch (e) {
@@ -172,6 +178,10 @@ class VehicleProvider extends ChangeNotifier {
           'retryCount': 0,
         });
         SyncService().checkPendingItems();
+        final index = _vehicles.indexWhere((v) => v['id'] == id);
+        if (index != -1) {
+          _vehicles[index] = { ..._vehicles[index], ...payload };
+        }
       } else {
         final updated = await _apiService.patch('/vehicles/$id', payload);
         final index = _vehicles.indexWhere((v) => v['id'] == id);
@@ -239,7 +249,23 @@ class VehicleProvider extends ChangeNotifier {
         if (propertiesLeft != null && propertiesLeft.isNotEmpty) 'propertiesLeft': propertiesLeft,
       };
 
-      if (SyncService().status == SyncStatus.offline) {
+      bool forceOffline = SyncService().status == SyncStatus.offline;
+      Map<String, dynamic>? onlineRes;
+
+      if (!forceOffline) {
+        try {
+          onlineRes = await _apiService.post('/sessions/checkin', payload);
+          await fetchVehicles(background: true);
+        } catch (e) {
+          if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup') || e.toString().contains('TimeoutException')) {
+            forceOffline = true;
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      if (forceOffline) {
         final db = await DatabaseHelper.instance.database;
         final mockId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
         await db.insert('sync_queue', {
@@ -255,14 +281,32 @@ class VehicleProvider extends ChangeNotifier {
           'id': mockId,
           'vehicle': {'plateNumber': plateNumber, 'category': {'name': categoryName}},
           'payment': {'amount': amount},
+          'amountDue': amount,
+          'driverName': driverName,
+          'driverPhone': driverPhone,
+          'driverCompany': driverCompany,
+          'propertiesLeft': propertiesLeft,
+          'status': 'INSIDE',
           'checkIn': DateTime.now().toIso8601String(),
         };
+        
+        final index = _vehicles.indexWhere((v) => v['plateNumber'] == plateNumber);
+        if (index != -1) {
+          _vehicles[index]['sessions'] ??= [];
+          _vehicles[index]['sessions'].insert(0, mockSession);
+        } else {
+          _vehicles.insert(0, {
+            'id': 'offline_v_${DateTime.now().millisecondsSinceEpoch}',
+            'plateNumber': plateNumber,
+            'category': {'name': categoryName},
+            'sessions': [mockSession],
+          });
+        }
+        notifyListeners();
         return mockSession;
-      } else {
-        final res = await _apiService.post('/sessions/checkin', payload);
-        await fetchVehicles();
-        return Map<String, dynamic>.from(res);
       }
+      
+      return Map<String, dynamic>.from(onlineRes!);
     } catch (e) {
       print('Error during checkin: $e');
       rethrow;
@@ -272,16 +316,35 @@ class VehicleProvider extends ChangeNotifier {
   Future<Map<String, dynamic>> fetchSessionDetails(String sessionId) async {
     try {
       if (sessionId.startsWith('offline_')) {
+        for (var v in _vehicles) {
+          if (v['sessions'] != null) {
+            for (var s in v['sessions']) {
+              if (s['id'] == sessionId) {
+                return Map<String, dynamic>.from(s);
+              }
+            }
+          }
+        }
         return {
           'id': sessionId,
           'vehicle': {'plateNumber': 'Offline', 'category': {'name': 'Unknown'}},
           'payment': {'amount': 0},
+          'driverName': 'Unknown',
         };
       }
       final res = await _apiService.get('/sessions/$sessionId');
       return Map<String, dynamic>.from(res);
     } catch (e) {
-      print('Error fetching session details: $e');
+      print('Error fetching session details: $e, falling back to local search');
+      for (var v in _vehicles) {
+        if (v['sessions'] != null) {
+          for (var s in v['sessions']) {
+            if (s['id'] == sessionId) {
+              return Map<String, dynamic>.from(s);
+            }
+          }
+        }
+      }
       rethrow;
     }
   }
@@ -299,7 +362,22 @@ class VehicleProvider extends ChangeNotifier {
         if (watchmanForgot) 'watchmanForgot': watchmanForgot,
       };
 
-      if (SyncService().status == SyncStatus.offline || sessionId.startsWith('offline_')) {
+      bool forceOffline = SyncService().status == SyncStatus.offline || sessionId.startsWith('offline_');
+
+      if (!forceOffline) {
+        try {
+          await _apiService.patch('/sessions/checkout/$sessionId', payload);
+          await fetchVehicles(background: true);
+        } catch (e) {
+          if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup') || e.toString().contains('TimeoutException')) {
+            forceOffline = true;
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      if (forceOffline) {
         final db = await DatabaseHelper.instance.database;
         // If it's offline check-out for an online session
         if (!sessionId.startsWith('offline_')) {
@@ -312,9 +390,16 @@ class VehicleProvider extends ChangeNotifier {
           });
         }
         SyncService().checkPendingItems();
-      } else {
-        await _apiService.patch('/sessions/checkout/$sessionId', payload);
-        await fetchVehicles();
+        for (var vehicle in _vehicles) {
+          if (vehicle['sessions'] != null) {
+            final index = (vehicle['sessions'] as List).indexWhere((s) => s['id'] == sessionId);
+            if (index != -1) {
+              vehicle['sessions'][index]['status'] = 'COMPLETED';
+              vehicle['sessions'][index]['checkOut'] = DateTime.now().toIso8601String();
+            }
+          }
+        }
+        notifyListeners();
       }
     } catch (e) {
       print('Error during checkout: $e');

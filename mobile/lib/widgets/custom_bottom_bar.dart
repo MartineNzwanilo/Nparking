@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
@@ -87,7 +87,7 @@ class _CustomSimBottomNavBarState extends State<CustomSimBottomNavBar>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildAdminTab(0, LucideIcons.barChart2, context.t.tr('overview')),
+                _buildAdminTab(0, LucideIcons.layoutDashboard, context.t.tr('dashboard')),
                 _buildAdminTab(1, LucideIcons.mapPin, context.t.tr('locations')),
                 _buildAdminTab(2, LucideIcons.camera, context.t.tr('surveillance')),
                 _buildAdminTab(3, LucideIcons.activity, context.t.tr('activity')),
@@ -162,7 +162,7 @@ class _CustomSimBottomNavBarState extends State<CustomSimBottomNavBar>
 
   Widget _buildAdminTab(int index, IconData icon, String label) {
     final isSelected = widget.currentIndex == index;
-    final activeColor = AppTheme.warning;
+    final activeColor = AppTheme.primary;
     final unselectedColor = Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5) ?? Colors.grey;
 
     return Expanded(

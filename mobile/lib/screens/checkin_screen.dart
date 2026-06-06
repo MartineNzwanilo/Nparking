@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -156,310 +156,318 @@ class _CheckInScreenState extends State<CheckInScreen> {
       barrierColor: Colors.black.withOpacity(isDark ? 0.85 : 0.6),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
-        return AnimatedPadding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          child: Center(
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.94,
-                constraints: const BoxConstraints(maxWidth: 550),
-                height: MediaQuery.of(context).size.height * 0.82,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06), 
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primary.withOpacity(isDark ? 0.08 : 0.05), 
-                      blurRadius: 40, 
-                      spreadRadius: 10,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // HEADER
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-                          ),
-                        ),
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AnimatedPadding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.94,
+                    constraints: const BoxConstraints(maxWidth: 550),
+                    height: MediaQuery.of(context).size.height * 0.82,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06), 
+                        width: 1.5,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            context.t.tr('newVehicleRegistration'),
-                            style: TextStyle(
-                              color: AppTheme.textPrimary(context),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withOpacity(isDark ? 0.08 : 0.05), 
+                          blurRadius: 40, 
+                          spreadRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // HEADER
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                              ),
                             ),
                           ),
-                          IconButton(
-                            icon: Icon(LucideIcons.x, color: isDark ? Colors.white60 : Colors.black54),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // BODY
-                    Expanded(
-                      child: Form(
-                        key: _registrationFormKey,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Center(
-                                child: Container(
-                                  height: 110,
-                                  width: 200,
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.white.withOpacity(0.015) : Colors.black.withOpacity(0.015),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Image.asset(
-                                    _getVehicleAsset(_selectedCategory),
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              
                               Text(
-                                context.t.tr('vehicleDetails'),
+                                context.t.tr('newVehicleRegistration'),
                                 style: TextStyle(
-                                  color: AppTheme.textSecondary(context),
+                                  color: AppTheme.textPrimary(context),
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  letterSpacing: 0.5,
+                                  fontSize: 18,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(child: _buildInputField(_colorController, context.t.tr('vehicleColor'), LucideIcons.palette, isCompact: true)),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: _buildInputField(_makeController, context.t.tr('makeModel'), LucideIcons.car, isCompact: true)),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-
-                              Text(
-                                context.t.tr('ownerDriverInfo'),
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary(context),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _buildInputField(_nameController, context.t.tr('fullName'), LucideIcons.user, requiredField: true),
-                              const SizedBox(height: 12),
-                              _buildInputField(
-                                _phoneController,
-                                context.t.tr('phoneNumber'),
-                                LucideIcons.phone,
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(12),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              _buildInputField(_companyController, context.t.tr('companyOrganization'), LucideIcons.building),
-                              const SizedBox(height: 20),
-                              Text(
-                                context.t.tr('vehiclePhotos') ?? 'VEHICLE PHOTOS',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary(context),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildPhotoCaptureSlot(
-                                      context,
-                                      context.t.tr('frontView') ?? 'Front View',
-                                      _frontImagePath,
-                                      (path) => setState(() => _frontImagePath = path),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _buildPhotoCaptureSlot(
-                                      context,
-                                      context.t.tr('plateView') ?? 'Plate View',
-                                      _plateImagePath,
-                                      (path) => setState(() => _plateImagePath = path),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _buildPhotoCaptureSlot(
-                                      context,
-                                      context.t.tr('sideView') ?? 'Side View',
-                                      _sideImagePath,
-                                      (path) => setState(() => _sideImagePath = path),
-                                    ),
-                                  ),
-                                ],
+                              IconButton(
+                                icon: Icon(LucideIcons.x, color: isDark ? Colors.white60 : Colors.black54),
+                                onPressed: () => Navigator.pop(context),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
+                        
+                        // BODY
+                        Expanded(
+                          child: Form(
+                            key: _registrationFormKey,
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Center(
+                                    child: Container(
+                                      height: 110,
+                                      width: 200,
+                                      decoration: BoxDecoration(
+                                        color: isDark ? Colors.white.withOpacity(0.015) : Colors.black.withOpacity(0.015),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(12),
+                                      child: Image.asset(
+                                        _getVehicleAsset(_selectedCategory),
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  
+                                  Text(
+                                    context.t.tr('vehicleDetails'),
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary(context),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildInputField(_colorController, context.t.tr('vehicleColor'), LucideIcons.palette, isCompact: true)),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: _buildInputField(_makeController, context.t.tr('makeModel'), LucideIcons.car, isCompact: true)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
 
-                    // FOOTER
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(
-                            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                                  Text(
+                                    context.t.tr('ownerDriverInfo'),
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary(context),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildInputField(_nameController, context.t.tr('fullName'), LucideIcons.user, requiredField: true),
+                                  const SizedBox(height: 12),
+                                  _buildInputField(
+                                    _phoneController,
+                                    context.t.tr('phoneNumber'),
+                                    LucideIcons.phone,
+                                    keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(12),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildInputField(_companyController, context.t.tr('companyOrganization'), LucideIcons.building),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    context.t.tr('vehiclePhotos') ?? 'VEHICLE PHOTOS',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary(context),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildPhotoCaptureSlot(
+                                          context,
+                                          context.t.tr('frontView') ?? 'Front View',
+                                          _frontImagePath,
+                                          (path) => setStateDialog(() => _frontImagePath = path),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildPhotoCaptureSlot(
+                                          context,
+                                          context.t.tr('plateView') ?? 'Plate View',
+                                          _plateImagePath,
+                                          (path) => setStateDialog(() => _plateImagePath = path),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildPhotoCaptureSlot(
+                                          context,
+                                          context.t.tr('sideView') ?? 'Side View',
+                                          _sideImagePath,
+                                          (path) => setStateDialog(() => _sideImagePath = path),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+                        // FOOTER
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                              ),
+                            ),
                           ),
-                          onPressed: _isLoading ? null : () async {
-                            if (!(_registrationFormKey.currentState?.validate() ?? false)) {
-                              return;
-                            }
-                            final plate = _plateController.text.trim().toUpperCase();
-                            final owner = _nameController.text.trim();
-                            if (plate.isEmpty || owner.isEmpty) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(context.t.tr('plateNumberAndOwnerRequired'))),
-                              );
-                              return;
-                            }
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: _isLoading ? null : () async {
+                                if (!(_registrationFormKey.currentState?.validate() ?? false)) {
+                                  return;
+                                }
+                                final plate = _plateController.text.trim().toUpperCase();
+                                final owner = _nameController.text.trim();
+                                if (plate.isEmpty || owner.isEmpty) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(context.t.tr('plateNumberAndOwnerRequired'))),
+                                  );
+                                  return;
+                                }
 
-                            setState(() {
-                              _isLoading = true;
-                            });
-
-                            final provider = context.read<VehicleProvider>();
-                            double amount = 0;
-                            try {
-                              final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory);
-                              amount = (cat['price'] as num).toDouble();
-                            } catch (_) {}
-
-                            try {
-                              await provider.registerVehicle(
-                                plate,
-                                _selectedCategory,
-                                owner,
-                                phone: _phoneController.text.trim(),
-                                company: _companyController.text.trim(),
-                                color: _colorController.text.trim(),
-                                makeModel: _makeController.text.trim(),
-                                frontImage: _frontImagePath,
-                                plateImage: _plateImagePath,
-                                sideImage: _sideImagePath,
-                              );
-                              final session = await provider.checkInVehicle(
-                                plate,
-                                _selectedCategory,
-                                amount,
-                                driverName: _driverNameController.text.isNotEmpty ? _driverNameController.text.trim() : owner,
-                                driverPhone: _driverPhoneController.text.isNotEmpty ? _driverPhoneController.text.trim() : _phoneController.text.trim(),
-                                driverCompany: _driverCompanyController.text.isNotEmpty ? _driverCompanyController.text.trim() : _companyController.text.trim(),
-                                driverEmail: _driverEmailController.text.trim(),
-                                autoSendEmail: _shouldEmail(context),
-                                autoSendSms: _shouldSms(context),
-                                propertiesLeft: _propertiesController.text.trim(),
-                              );
-                              if (!context.mounted) return;
-                              Navigator.pop(context);
-                              
-                              _plateController.clear();
-                              _nameController.clear();
-                              _phoneController.clear();
-                              _companyController.clear();
-                              _colorController.clear();
-                              _makeController.clear();
-                              _driverNameController.clear();
-                              _driverPhoneController.clear();
-                              _driverCompanyController.clear();
-                              _driverEmailController.clear();
-                              _propertiesController.clear();
-                              setState(() {
-                                _isNewVehicle = true;
-                                _selectedVehicle = null;
-                                _frontImagePath = null;
-                                _plateImagePath = null;
-                                _sideImagePath = null;
-                                _overridePrint = null;
-                                _overrideEmail = null;
-                                _overrideSms = null;
-                                _isLoading = false;
-                              });
-
-                              if (_shouldPrint(context)) {
-                                PrintingService.printTicket(session).catchError((err) {
-                                  print('Background auto-print failed: $err');
+                                setStateDialog(() {
+                                  _isLoading = true;
                                 });
-                              }
-                              _showTicketDialog(context, session);
-                            } catch (_) {
-                              if (!context.mounted) return;
-                              setState(() {
-                                _isLoading = false;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Failed to register and check in vehicle.')),
-                              );
-                            }
-                          },
-                          child: _isLoading
-                            ? const SizedBox(
-                                width: 20, 
-                                height: 20, 
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                              )
-                            : Text(
-                            context.t.tr('completeRegistration'),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+
+                                final provider = context.read<VehicleProvider>();
+                                double amount = 0;
+                                try {
+                                  final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory);
+                                  amount = (cat['price'] as num).toDouble();
+                                } catch (_) {}
+
+                                try {
+                                  await provider.registerVehicle(
+                                    plate,
+                                    _selectedCategory,
+                                    owner,
+                                    phone: _phoneController.text.trim(),
+                                    company: _companyController.text.trim(),
+                                    color: _colorController.text.trim(),
+                                    makeModel: _makeController.text.trim(),
+                                    frontImage: _frontImagePath,
+                                    plateImage: _plateImagePath,
+                                    sideImage: _sideImagePath,
+                                  );
+                                  final session = await provider.checkInVehicle(
+                                    plate,
+                                    _selectedCategory,
+                                    amount,
+                                    driverName: _driverNameController.text.isNotEmpty ? _driverNameController.text.trim() : owner,
+                                    driverPhone: _driverPhoneController.text.isNotEmpty ? _driverPhoneController.text.trim() : _phoneController.text.trim(),
+                                    driverCompany: _driverCompanyController.text.isNotEmpty ? _driverCompanyController.text.trim() : _companyController.text.trim(),
+                                    driverEmail: _driverEmailController.text.trim(),
+                                    autoSendEmail: _shouldEmail(context),
+                                    autoSendSms: _shouldSms(context),
+                                    propertiesLeft: _propertiesController.text.trim(),
+                                  );
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+                                  
+                                  _plateController.clear();
+                                  _nameController.clear();
+                                  _phoneController.clear();
+                                  _companyController.clear();
+                                  _colorController.clear();
+                                  _makeController.clear();
+                                  _driverNameController.clear();
+                                  _driverPhoneController.clear();
+                                  _driverCompanyController.clear();
+                                  _driverEmailController.clear();
+                                  _propertiesController.clear();
+                                  setState(() {
+                                    _isNewVehicle = true;
+                                    _selectedVehicle = null;
+                                    _frontImagePath = null;
+                                    _plateImagePath = null;
+                                    _sideImagePath = null;
+                                    _overridePrint = null;
+                                    _overrideEmail = null;
+                                    _overrideSms = null;
+                                    _isLoading = false;
+                                  });
+
+                                  if (_shouldPrint(context)) {
+                                    PrintingService.printTicket(context, session).catchError((err) {
+                                      if (mounted) {
+                                        print('Background auto-print failed: $err');
+                                      }
+                                    });
+                                  }
+                                  if (context.mounted) {
+                                    context.read<ShellNavigationProvider>().setIndex(1);
+                                  }
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  setStateDialog(() {
+                                    _isLoading = false;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Failed to register and check in vehicle.')),
+                                  );
+                                }
+                              },
+                              child: _isLoading
+                                ? const SizedBox(
+                                    width: 20, 
+                                    height: 20, 
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                                  )
+                                : Text(
+                                context.t.tr('completeRegistration'),
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          }
         );
       },
       transitionBuilder: (context, anim1, anim2, child) {
@@ -523,11 +531,29 @@ class _CheckInScreenState extends State<CheckInScreen> {
     if (nav.prefilledPlate != null) {
       final plate = nav.prefilledPlate!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _plateController.text = plate;
-        });
-        _onPlateChanged(plate);
         nav.clearPrefilledPlate();
+        if (plate.isNotEmpty) {
+          final provider = context.read<VehicleProvider>();
+          final exactMatch = provider.vehicles.firstWhere(
+            (v) => (v['plateNumber'] ?? '').toString().toLowerCase() == plate.toLowerCase(),
+            orElse: () => null,
+          );
+
+          if (exactMatch != null) {
+            _selectVehicle(exactMatch);
+          } else {
+            setState(() {
+              _plateController.text = plate;
+              _isNewVehicle = true;
+            });
+            _showPremiumRegistrationDialog();
+          }
+        } else {
+          setState(() {
+            _plateController.clear();
+            _isNewVehicle = true;
+          });
+        }
       });
     }
 
@@ -766,11 +792,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
                               _isLoading = false;
                             });
                             if (_shouldPrint(context)) {
-                              PrintingService.printTicket(session).catchError((err) {
-                                print('Background auto-print failed: $err');
+                              PrintingService.printTicket(context, session).catchError((err) {
+                                if (mounted) {
+                                  print('Background auto-print failed: $err');
+                                }
                               });
                             }
-                            _showTicketDialog(context, session);
+                            if (context.mounted) {
+                              context.read<ShellNavigationProvider>().setIndex(1);
+                            }
                           }
                         } catch (_) {
                           if (!context.mounted) return;
@@ -881,64 +911,70 @@ class _CheckInScreenState extends State<CheckInScreen> {
     if (_searchResults.isEmpty) return const SizedBox.shrink();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+            ),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _searchResults.length,
+            separatorBuilder: (context, index) => Divider(
+              color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03), 
+              height: 1,
+            ),
+            itemBuilder: (context, index) {
+              final v = _searchResults[index];
+              bool isInside = v['sessions'] != null && v['sessions'].isNotEmpty && v['sessions'][0]['status'] == 'INSIDE';
+              
+              return ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (isInside ? AppTheme.warning : AppTheme.success).withOpacity(0.12), 
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(LucideIcons.car, color: isInside ? AppTheme.warning : AppTheme.success, size: 20),
+                ),
+                title: Text(
+                  v['plateNumber'] ?? '',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary(context),
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                subtitle: Text(
+                  '${v['ownerName'] ?? context.t.tr('unknownOwner')} - ${v['category']?['name'] ?? context.t.tr('unknownCategory')}',
+                  style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isInside ? AppTheme.warning.withOpacity(0.12) : AppTheme.success.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isInside ? context.t.tr('inside') : context.t.tr('absent'),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isInside ? AppTheme.warning : AppTheme.success),
+                  ),
+                ),
+                onTap: () => _selectVehicle(v),
+              );
+            },
+          ),
         ),
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _searchResults.length,
-        separatorBuilder: (context, index) => Divider(
-          color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03), 
-          height: 1,
-        ),
-        itemBuilder: (context, index) {
-          final v = _searchResults[index];
-          bool isInside = v['sessions'] != null && v['sessions'].isNotEmpty && v['sessions'][0]['status'] == 'INSIDE';
-          
-          return ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (isInside ? AppTheme.warning : AppTheme.success).withOpacity(0.12), 
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(LucideIcons.car, color: isInside ? AppTheme.warning : AppTheme.success, size: 20),
-            ),
-            title: Text(
-              v['plateNumber'] ?? '',
-              style: TextStyle(
-                color: AppTheme.textPrimary(context),
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-            subtitle: Text(
-              '${v['ownerName'] ?? context.t.tr('unknownOwner')} - ${v['category']?['name'] ?? context.t.tr('unknownCategory')}',
-              style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isInside ? AppTheme.warning.withOpacity(0.12) : AppTheme.success.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                isInside ? context.t.tr('inside') : context.t.tr('absent'),
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isInside ? AppTheme.warning : AppTheme.success),
-              ),
-            ),
-            onTap: () => _selectVehicle(v),
-          );
-        },
       ),
     );
   }
@@ -1000,10 +1036,30 @@ class _CheckInScreenState extends State<CheckInScreen> {
         MaterialPageRoute(builder: (_) => const ScannerScreen(mode: ScannerMode.plate)),
       );
       if (result != null && result is String) {
-        setState(() {
-          _plateController.text = result;
-        });
-        _onPlateChanged(result);
+        if (result.isNotEmpty) {
+          final provider = context.read<VehicleProvider>();
+          final exactMatch = provider.vehicles.firstWhere(
+            (v) => (v['plateNumber'] ?? '').toString().toLowerCase() == result.toLowerCase(),
+            orElse: () => null,
+          );
+
+          if (exactMatch != null) {
+            _selectVehicle(exactMatch);
+          } else {
+            setState(() {
+              _plateController.text = result;
+              _isNewVehicle = true;
+            });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showPremiumRegistrationDialog();
+            });
+          }
+        } else {
+          setState(() {
+            _plateController.clear();
+            _isNewVehicle = true;
+          });
+        }
       }
     } else {
       if (!mounted) return;
@@ -1108,233 +1164,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     );
   }
 
-  void _showTicketDialog(BuildContext context, Map<String, dynamic> session) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final vehicle = session['vehicle'];
-    final plate = vehicle != null ? vehicle['plateNumber'] : '';
-    final category = (vehicle != null && vehicle['category'] != null) ? vehicle['category']['name'] : '';
-    final watchman = session['watchman'] != null ? session['watchman']['name'] : '';
-    final date = DateTime.tryParse(session['checkIn'] ?? '') ?? DateTime.now();
-    final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(date);
-    final amount = session['amountDue'] ?? 0.0;
-    final ticketId = session['id'] ?? '';
-    
-    final driverName = session['driverName'] ?? 'N/A';
-    final driverPhone = session['driverPhone'] ?? 'N/A';
-    final driverCompany = session['driverCompany'] ?? 'N/A';
-    final propertiesLeft = session['propertiesLeft'];
 
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Ticket',
-      barrierColor: Colors.black.withOpacity(0.85),
-      transitionDuration: const Duration(milliseconds: 350),
-      pageBuilder: (context, anim1, anim2) {
-        return Center(
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.88,
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
-                  blurRadius: 30,
-                  spreadRadius: 2,
-                )
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(LucideIcons.ticket, color: AppTheme.primary, size: 30),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'PARKING ENTRY TICKET',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Ngewa Parking System (NPS)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  Row(
-                    children: List.generate(
-                      15,
-                      (index) => Expanded(
-                        child: Container(
-                          height: 1,
-                          color: index % 2 == 0 ? Colors.transparent : (isDark ? Colors.white24 : Colors.black12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: CustomPaint(
-                      size: const Size(140, 140),
-                      painter: QrPainter(ticketId, color: Colors.black),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Scan at Checkout',
-                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context).withOpacity(0.6), fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-
-                  _buildTicketRow(context, 'Ticket ID', ticketId.substring(0, 8).toUpperCase(), isBold: true),
-                  _buildTicketRow(context, 'Plate Number', plate, isBold: true, highlight: true),
-                  _buildTicketRow(context, 'Vehicle Category', category),
-                  _buildTicketRow(context, 'Date & Time', dateStr),
-                  _buildTicketRow(context, 'Driver Name', driverName),
-                  _buildTicketRow(context, 'Driver Phone', driverPhone),
-                  _buildTicketRow(context, 'Driver Company', driverCompany),
-                  
-                  if (propertiesLeft != null && propertiesLeft.toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.warning.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('Properties Left in Vehicle:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.warning)),
-                          const SizedBox(height: 4),
-                          Text(propertiesLeft.toString().trim(), style: TextStyle(fontSize: 12, color: AppTheme.textPrimary(context))),
-                        ],
-                      ),
-                    ),
-                  ],
-                  
-                  _buildTicketRow(context, 'Fee Paid', 'TZS ${amount.toStringAsFixed(0)}', isBold: true, color: AppTheme.success),
-                  
-                  const SizedBox(height: 24),
-                  
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Close'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            await PrintingService.showPrintDialog(context, session);
-                          },
-                          child: const Text('Print Ticket', style: TextStyle(color: Colors.white)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: child,
-        );
-      },
-    );
-  }
-
-  void _promptPrintTicket(BuildContext context, Map<String, dynamic> session) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Check-In Successful'),
-          content: const Text('Would you like to print the entry ticket now?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('No'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await PrintingService.showPrintDialog(context, session);
-              },
-              child: const Text('Yes, Print'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildTicketRow(BuildContext context, String label, String value, {bool isBold = false, bool highlight = false, Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary(context))),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: color ?? (highlight ? AppTheme.primary : AppTheme.textPrimary(context)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildOverrideIconToggle(
     BuildContext context,

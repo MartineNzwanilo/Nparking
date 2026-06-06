@@ -410,7 +410,17 @@ export class SessionService {
         });
     }
 
-    return session;
+    const populatedSession = await this.prisma.parkingSession.findUnique({
+      where: { id: session.id },
+      include: {
+        vehicle: {
+          include: { category: true },
+        },
+        payment: true,
+      },
+    });
+
+    return populatedSession;
   }
 
   async findOne(id: string, actor: SessionActor) {

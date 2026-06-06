@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../core/parking_i18n.dart';
 import '../widgets/complex_animations.dart';
 import '../providers/activity_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/vehicle_provider.dart';
 import '../services/printing_service.dart';
 import '../core/api_service.dart';
 
@@ -527,7 +528,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
           IconButton(
             icon: const Icon(LucideIcons.printer, color: AppTheme.primary),
-            onPressed: () {
+            onPressed: () async {
               final activities = context.read<ActivityProvider>().activities.cast<Map<String, dynamic>>();
               if (activities.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -535,7 +536,18 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 );
                 return;
               }
-              _showReceiptPreview(context, activities.first);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Printing Activity Report...')),
+              );
+              try {
+                await PrintingService.printActivityReport(context, activities);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to print: $e')),
+                  );
+                }
+              }
             },
           ),
           const SizedBox(width: 10),
@@ -749,7 +761,22 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                       Align(
                                         alignment: Alignment.centerRight,
                                         child: TextButton.icon(
-                                          onPressed: () => _showReceiptPreview(context, activity),
+                                          onPressed: () async {
+                                            final sessionId = _getSessionId(activity['id'].toString());
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Reprinting ticket...')),
+                                            );
+                                            try {
+                                              final session = await context.read<VehicleProvider>().fetchSessionDetails(sessionId);
+                                              await PrintingService.printTicket(context, session);
+                                            } catch (e) {
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Failed to reprint ticket: $e')),
+                                                );
+                                              }
+                                            }
+                                          },
                                           icon: const Icon(LucideIcons.printer, size: 14, color: AppTheme.primary),
                                           label: Text(
                                             context.t.tr('reprintTicket'),

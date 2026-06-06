@@ -1,5 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
@@ -7,8 +8,35 @@ import '../../providers/admin_provider.dart';
 import '../../providers/theme_provider.dart';
 import 'admin_settings_screen.dart';
 
-class AdminOverviewScreen extends StatelessWidget {
+class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({super.key});
+
+  @override
+  State<AdminOverviewScreen> createState() => _AdminOverviewScreenState();
+}
+
+class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
+  Timer? _pollingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start periodic background updates every 10 seconds to keep metrics "live"
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        final adminProvider = context.read<AdminProvider>();
+        if (!adminProvider.isLoadingMetrics) {
+          adminProvider.fetchDashboardMetrics();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,15 +47,15 @@ class AdminOverviewScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Executive Overview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.warning)),
+        title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.primary)),
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.moon, color: AppTheme.warning),
+            icon: const Icon(LucideIcons.moon, color: AppTheme.primary),
             onPressed: () => context.read<ThemeProvider>().toggleTheme(),
           ),
           IconButton(
-            icon: const Icon(LucideIcons.settings, color: AppTheme.warning),
+            icon: const Icon(LucideIcons.settings, color: AppTheme.primary),
             onPressed: () {
               Navigator.push(
                 context,
@@ -46,6 +74,11 @@ class AdminOverviewScreen extends StatelessWidget {
             final activeVehicles = metrics?['activeVehicles'] as num? ?? 0;
             final activeStaff = metrics?['activeStaff'] as num? ?? 0;
             final securityAlerts = metrics?['securityAlerts'] as num? ?? 0;
+            final revenueChangePercent = (metrics?['revenueChangePercent'] as num?)?.toDouble() ?? 0.0;
+            final isPositive = revenueChangePercent >= 0;
+            final trendColor = isPositive ? AppTheme.success : AppTheme.error;
+            final trendText = '${isPositive ? '+' : ''}${revenueChangePercent.toStringAsFixed(1)}%';
+            final trendIcon = isPositive ? LucideIcons.trendingUp : LucideIcons.trendingDown;
 
             final formattedRevenue = currencyFormat.format(todaysRevenue);
 
@@ -63,19 +96,19 @@ class AdminOverviewScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppTheme.warning.withOpacity(0.2), AppTheme.warning.withOpacity(0.05)],
+                          colors: [AppTheme.primary.withOpacity(0.2), AppTheme.primary.withOpacity(0.05)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+                        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              const Icon(LucideIcons.globe, color: AppTheme.warning, size: 20),
+                              const Icon(LucideIcons.globe, color: AppTheme.primary, size: 20),
                               const SizedBox(width: 8),
                               Text(
                                 'GLOBAL REVENUE TODAY',
@@ -94,14 +127,14 @@ class AdminOverviewScreen extends StatelessWidget {
                           adminProvider.isLoadingMetrics && metrics == null
                               ? const SizedBox(
                                   height: 48,
-                                  child: Center(child: CircularProgressIndicator(color: AppTheme.warning)),
+                                  child: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
                                 )
                               : Text(
                                   'TZS $formattedRevenue',
                                   style: TextStyle(
                                     color: Theme.of(context).brightness == Brightness.dark
-                                        ? AppTheme.warning
-                                        : const Color(0xFFB45309),
+                                        ? AppTheme.primary
+                                        : AppTheme.primary,
                                     fontSize: 36,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -112,14 +145,14 @@ class AdminOverviewScreen extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.success.withOpacity(0.2),
+                                  color: trendColor.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   children: [
-                                    Icon(LucideIcons.trendingUp, color: AppTheme.success, size: 12),
-                                    SizedBox(width: 4),
-                                    Text('+14.5%', style: TextStyle(color: AppTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    Icon(trendIcon, color: trendColor, size: 12),
+                                    const SizedBox(width: 4),
+                                    Text(trendText, style: TextStyle(color: trendColor, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
@@ -177,6 +210,7 @@ class AdminOverviewScreen extends StatelessWidget {
   Widget _buildMetricCard(String title, String value, IconData icon, BuildContext context, {Color color = Colors.grey}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,

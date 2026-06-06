@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../providers/vehicle_provider.dart';
@@ -244,9 +244,23 @@ class CheckoutHelper {
     final amount = (session['amountDue'] as num?)?.toDouble() ?? 0.0;
     final sessionId = session['id'];
     
-    final driverName = session['driverName'] ?? 'N/A';
-    final driverPhone = session['driverPhone'] ?? 'N/A';
-    final driverCompany = session['driverCompany'] ?? 'N/A';
+    String driverName = session['driverName'] ?? '';
+    if (driverName.trim().isEmpty || driverName == 'N/A') {
+      driverName = vehicle['ownerName']?.toString().trim() ?? 'N/A';
+      if (driverName.isEmpty) driverName = 'N/A';
+    }
+
+    String driverPhone = session['driverPhone'] ?? '';
+    if (driverPhone.trim().isEmpty || driverPhone == 'N/A') {
+      driverPhone = vehicle['phone']?.toString().trim() ?? 'N/A';
+      if (driverPhone.isEmpty) driverPhone = 'N/A';
+    }
+
+    String driverCompany = session['driverCompany'] ?? '';
+    if (driverCompany.trim().isEmpty || driverCompany == 'N/A') {
+      driverCompany = vehicle['company']?.toString().trim() ?? 'N/A';
+      if (driverCompany.isEmpty) driverCompany = 'N/A';
+    }
 
     final diffMs = DateTime.now().difference(checkInDate).inMilliseconds;
     final diffHrs = diffMs ~/ 3600000;

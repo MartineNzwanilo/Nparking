@@ -139,6 +139,35 @@ export class ReportService {
     });
     const todaysRevenue = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
 
+    // Yesterday's Revenue
+    const yesterdayStart = new Date();
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    yesterdayStart.setHours(0, 0, 0, 0);
+
+    const yesterdayEnd = new Date();
+    yesterdayEnd.setHours(0, 0, 0, 0);
+
+    const yesterdayPaymentWhere: any = {
+      collectedAt: {
+        gte: yesterdayStart,
+        lt: yesterdayEnd,
+      },
+    };
+    if (siteId && siteId !== 'all') {
+      yesterdayPaymentWhere.session = { siteId };
+    }
+    const yesterdaysPayments = await this.prisma.payment.findMany({
+      where: yesterdayPaymentWhere,
+    });
+    const yesterdaysRevenue = yesterdaysPayments.reduce((sum, p) => sum + p.amount, 0);
+
+    let revenueChangePercent = 0.0;
+    if (yesterdaysRevenue > 0) {
+      revenueChangePercent = ((todaysRevenue - yesterdaysRevenue) / yesterdaysRevenue) * 100;
+    } else if (todaysRevenue > 0) {
+      revenueChangePercent = 100.0;
+    }
+
     // Today's Fines
     const todaysFineWhere: any = { checkIn: { gte: today }, fineAmount: { gt: 0 } };
     if (siteId && siteId !== 'all') todaysFineWhere.siteId = siteId;
@@ -207,6 +236,7 @@ export class ReportService {
       securityAlerts: securityAlertsCount,
       recentActivity,
       hourlyTraffic,
+      revenueChangePercent,
     };
   }
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../core/parking_i18n.dart';
@@ -93,6 +93,15 @@ class _ShellScreenState extends State<ShellScreen> {
               context
                   .read<ShellNavigationProvider>()
                   .setIndex(index, maxIndex: tabs.length - 1);
+              if (auth.isAdmin && index == 0) {
+                // Refresh dashboard metrics immediately on tab switch
+                context.read<AdminProvider>().fetchDashboardMetrics();
+              } else if (auth.isAdmin && index == 2) {
+                // Reset site filter and fetch all cameras when navigating via bottom bar
+                final adminProvider = context.read<AdminProvider>();
+                adminProvider.setSelectedSiteIdForSurveillance(null);
+                adminProvider.fetchCameras();
+              }
             },
           ),
         );

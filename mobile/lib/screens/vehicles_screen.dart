@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../core/theme.dart';
@@ -73,8 +73,25 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final colorController = TextEditingController(text: editingVehicle?['color']);
     final makeController = TextEditingController(text: editingVehicle?['makeModel']);
     const createNewCategoryOption = '__create_new__';
+    
+    final vehicleProvider = context.read<VehicleProvider>();
+    List<String> categories = vehicleProvider.categories
+        .map((cat) => (cat['name'] ?? '').toString())
+        .where((name) => name.isNotEmpty)
+        .toList();
+
+    if (categories.isEmpty) {
+      categories = ['Bodaboda', 'Bajaji', 'Sedan/SUV', 'Daladala', 'Lorry'];
+    }
+
     String selectedCategory = editingVehicle?['category']?['name'] ?? 'Sedan/SUV';
-    List<String> categories = ['Bodaboda', 'Bajaji', 'Sedan/SUV', 'Daladala', 'Lorry', createNewCategoryOption];
+    if (!categories.contains(selectedCategory)) {
+      categories.insert(0, selectedCategory);
+    }
+    if (!categories.contains('Sedan/SUV')) {
+      categories.add('Sedan/SUV');
+    }
+    categories.add(createNewCategoryOption);
 
     // Image capture states
     String? frontImagePath;
@@ -241,6 +258,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                         child: DropdownButtonFormField<String>(
                                           dropdownColor: Theme.of(context).cardColor,
                                           style: TextStyle(color: AppTheme.textPrimary(context)),
+                                          isExpanded: true,
                                           decoration: InputDecoration(
                                             prefixIcon: Icon(LucideIcons.car, color: isDark ? Colors.white38 : Colors.black38),
                                             labelText: context.t.tr('selectVehicleCategory'),
@@ -259,6 +277,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                             value: c, 
                                             child: Text(
                                               c == createNewCategoryOption ? context.t.tr('createNewCategory') : c,
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
                                               style: TextStyle(
                                                 color: c == createNewCategoryOption
                                                     ? AppTheme.primary
@@ -529,6 +549,64 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
+  // ─── Quick check-in for 1-click Check In from card ─────────────────
+  void _quickCheckIn(BuildContext context, Map<String, dynamic> vehicle) async {
+    final provider = context.read<VehicleProvider>();
+    final auth = context.read<AuthProvider>();
+    final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
+    final amount = (vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
+    
+    // Show a small loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+    );
+    
+    try {
+      final session = await provider.checkInVehicle(
+        vehicle['plateNumber'],
+        category,
+        amount,
+        autoSendEmail: auth.autoSendEmail,
+        autoSendSms: auth.autoSendSms,
+        propertiesLeft: '',
+      );
+      
+      // Inject the vehicle data into session so the receipt can print Plate and Category correctly
+      if (session['vehicle'] == null) {
+        session['vehicle'] = vehicle;
+      }
+      
+      if (context.mounted) Navigator.pop(context); // close loading
+      
+      // Force auto print
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${vehicle['plateNumber']} Checked In. Attempting to Print...'),
+          duration: const Duration(seconds: 1),
+        ));
+      }
+      
+      await PrintingService.printTicket(context, session);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${vehicle['plateNumber']} Checked In & Auto-Printed Successfully.'),
+          backgroundColor: AppTheme.success,
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context); // close loading
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Check in failed: $e'),
+          backgroundColor: AppTheme.error,
+        ));
+      }
+    }
+  }
+
   // ─── Dedicated check-in dialog for the vehicles screen ─────────────────
   void _showVehiclesCheckInDialog(BuildContext context, Map<String, dynamic> vehicle) {
     final propertiesController = TextEditingController();
@@ -540,7 +618,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final auth = context.read<AuthProvider>();
     bool initSms = auth.autoSendSms;
     bool initEmail = auth.autoSendEmail;
-    bool initPrint = auth.autoPrint;
+    bool initPrint = true; // ALWAYS default to true to ensure printing
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -783,8 +861,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                   ),
                                   onPressed: () async {
+                                    // Capture the scaffold context BEFORE popping the dialog
+                                    final scaffoldContext = context;
                                     Navigator.pop(context);
-                                    final provider = context.read<VehicleProvider>();
+                                    final provider = scaffoldContext.read<VehicleProvider>();
                                     final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
                                     final amount = (vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
                                     try {
@@ -793,26 +873,99 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                         category,
                                         amount,
                                         driverEmail: emailController.text.trim(),
-                                        autoSendEmail: email,
-                                        autoSendSms: sms,
+                                        autoSendEmail: overrideEmail ?? initEmail,
+                                        autoSendSms: overrideSms ?? initSms,
                                         propertiesLeft: propertiesController.text.trim(),
                                       );
-                                      if (context.mounted) {
-                                        if (autoPrint) {
-                                          PrintingService.printTicket(session).catchError((err) {
-                                            print('Auto-print failed: \$err');
+
+                                      // Inject the vehicle data into session so the receipt can print Plate and Category correctly
+                                      if (session['vehicle'] == null) {
+                                        session['vehicle'] = vehicle;
+                                      }
+
+                                      if (scaffoldContext.mounted) {
+                                        final shouldPrint = overridePrint ?? initPrint;
+                                        if (shouldPrint) {
+                                          PrintingService.printTicket(scaffoldContext, session).catchError((err) {
+                                            print('Auto-print failed: $err');
                                           });
+                                          ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                            SnackBar(
+                                              content: Text('${vehicle['plateNumber']} Checked In & Printed Successfully.'),
+                                              backgroundColor: AppTheme.success,
+                                            ),
+                                          );
+                                        } else {
+                                          // Show the ticket dialog with print option only if not auto-printing
+                                          showDialog(
+                                            context: scaffoldContext,
+                                            builder: (ctx) => AlertDialog(
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                              title: Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      color: AppTheme.success.withOpacity(0.12),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(LucideIcons.checkCircle, color: AppTheme.success, size: 20),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    scaffoldContext.t.tr('checkInSuccess'),
+                                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ],
+                                              ),
+                                              content: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    '${vehicle['plateNumber']} has been checked in successfully.',
+                                                    style: const TextStyle(fontSize: 14),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  const Text(
+                                                    'Would you like to print the entry ticket?',
+                                                    style: TextStyle(fontSize: 13),
+                                                  ),
+                                                ],
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(ctx),
+                                                  child: const Text('No, Close'),
+                                                ),
+                                                ElevatedButton.icon(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: AppTheme.primary,
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                  ),
+                                                  icon: const Icon(LucideIcons.printer, size: 16, color: Colors.white),
+                                                  onPressed: () async {
+                                                    try {
+                                                      Navigator.pop(ctx);
+                                                      await PrintingService.printTicket(scaffoldContext, session);
+                                                    } catch (e) {
+                                                      if (scaffoldContext.mounted) {
+                                                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                                          SnackBar(content: Text('Printing failed: $e'), backgroundColor: AppTheme.error),
+                                                        );
+                                                      }
+                                                    }
+                                                  },
+                                                  label: const Text('Print Ticket', style: TextStyle(color: Colors.white)),
+                                                ),
+                                              ],
+                                            ),
+                                          );
                                         }
-                                        GlobalPopup.showSuccess(
-                                          context,
-                                          context.t.tr('vehicleCheckedIn', {'plate': '${vehicle['plateNumber']}'}),
-                                          title: context.t.tr('checkInSuccess'),
-                                        );
                                       }
                                     } catch (_) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
+                                      if (scaffoldContext.mounted) {
+                                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                          SnackBar(content: Text(scaffoldContext.t.tr('failedCheckInVehicle'))),
                                         );
                                       }
                                     }
@@ -1517,7 +1670,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          _showVehiclesCheckInDialog(context, vehicle);
+                          _quickCheckIn(context, vehicle);
                         }
                       },
                     ),
@@ -1784,7 +1937,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          _showVehiclesCheckInDialog(context, vehicle);
+                          _quickCheckIn(context, vehicle);
                         }
                       },
                     ),
