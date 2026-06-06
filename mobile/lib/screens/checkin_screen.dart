@@ -140,6 +140,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
       _searchResults = [];
       if (vehicle['category'] != null) {
         _selectedCategory = vehicle['category']['name'];
+      } else if (vehicle['categoryName'] != null) {
+        _selectedCategory = vehicle['categoryName'];
       }
       _driverNameController.text = vehicle['ownerName'] ?? '';
       _driverPhoneController.text = vehicle['phone'] ?? '';
@@ -149,7 +151,20 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _plateController.selection = TextSelection.fromPosition(TextPosition(offset: _plateController.text.length));
   }
 
+  void _clearRegistrationFields() {
+    _nameController.clear();
+    _phoneController.clear();
+    _emailController.clear();
+    _companyController.clear();
+    _colorController.clear();
+    _makeController.clear();
+    _frontImagePath = null;
+    _plateImagePath = null;
+    _sideImagePath = null;
+  }
+
   void _showPremiumRegistrationDialog() {
+    _clearRegistrationFields();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showGeneralDialog(
       context: context,
@@ -404,62 +419,33 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                     plateImage: _plateImagePath,
                                     sideImage: _sideImagePath,
                                   );
-                                  final session = await provider.checkInVehicle(
-                                    plate,
-                                    _selectedCategory,
-                                    amount,
-                                    driverName: _driverNameController.text.isNotEmpty ? _driverNameController.text.trim() : owner,
-                                    driverPhone: _driverPhoneController.text.isNotEmpty ? _driverPhoneController.text.trim() : _phoneController.text.trim(),
-                                    driverCompany: _driverCompanyController.text.isNotEmpty ? _driverCompanyController.text.trim() : _companyController.text.trim(),
-                                    driverEmail: _driverEmailController.text.isNotEmpty ? _driverEmailController.text.trim() : _emailController.text.trim(),
-                                    autoSendEmail: _shouldEmail(context),
-                                    autoSendSms: _shouldSms(context),
-                                    propertiesLeft: _propertiesController.text.trim(),
+
+                                  final newVehicle = provider.vehicles.firstWhere(
+                                    (v) => (v['plateNumber'] ?? '').toString().toLowerCase() == plate.toLowerCase(),
+                                    orElse: () => null,
                                   );
+
                                   if (!context.mounted) return;
+
+                                  if (newVehicle != null) {
+                                    _selectVehicle(newVehicle);
+                                  }
+
                                   Navigator.pop(context);
-                                  
-                                  _plateController.clear();
-                                  _nameController.clear();
-                                  _phoneController.clear();
-                                  _emailController.clear();
-                                  _companyController.clear();
-                                  _colorController.clear();
-                                  _makeController.clear();
-                                  _driverNameController.clear();
-                                  _driverPhoneController.clear();
-                                  _driverCompanyController.clear();
-                                  _driverEmailController.clear();
-                                  _propertiesController.clear();
+
                                   setState(() {
-                                    _isNewVehicle = true;
-                                    _selectedVehicle = null;
                                     _frontImagePath = null;
                                     _plateImagePath = null;
                                     _sideImagePath = null;
-                                    _overridePrint = null;
-                                    _overrideEmail = null;
-                                    _overrideSms = null;
                                     _isLoading = false;
                                   });
-
-                                  if (_shouldPrint(context)) {
-                                    PrintingService.printTicket(context, session).catchError((err) {
-                                      if (mounted) {
-                                        print('Background auto-print failed: $err');
-                                      }
-                                    });
-                                  }
-                                  if (context.mounted) {
-                                    context.read<ShellNavigationProvider>().setIndex(1);
-                                  }
                                 } catch (_) {
                                   if (!context.mounted) return;
                                   setStateDialog(() {
                                     _isLoading = false;
                                   });
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Failed to register and check in vehicle.')),
+                                    SnackBar(content: Text(context.t.tr('failedRegisterVehicle'))),
                                   );
                                 }
                               },

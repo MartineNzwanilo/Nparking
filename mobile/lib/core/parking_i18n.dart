@@ -204,6 +204,7 @@ class ParkingI18n {
     'saveChanges': 'Save Changes',
     'updateSuccess': 'Update Success',
     'vehicleUpdated': 'Vehicle updated successfully',
+    'failedRegisterVehicle': 'Failed to register vehicle.',
   };
 
   static const Map<String, String> _sw = {
@@ -401,6 +402,7 @@ class ParkingI18n {
     'saveChanges': 'Hifadhi Mabadiliko',
     'updateSuccess': 'Mabadiliko Yamehifadhiwa',
     'vehicleUpdated': 'Taarifa za chombo zimesasishwa kwa mafanikio',
+    'failedRegisterVehicle': 'Imeshindikana kusajili chombo.',
   };
 
   String tr(String key, [Map<String, String> args = const {}]) {
