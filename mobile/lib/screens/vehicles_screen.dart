@@ -1665,12 +1665,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                       onPressed: () async {
-                        final provider = context.read<VehicleProvider>();
                         if (isInside) {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          _quickCheckIn(context, vehicle);
+                          _showVehiclesCheckInDialog(context, vehicle);
                         }
                       },
                     ),
