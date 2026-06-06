@@ -36,6 +36,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final TextEditingController _plateController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _companyController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
   final TextEditingController _makeController = TextEditingController();
@@ -66,6 +67,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _plateController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _companyController.dispose();
     _colorController.dispose();
     _makeController.dispose();
@@ -199,12 +201,16 @@ class _CheckInScreenState extends State<CheckInScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                context.t.tr('newVehicleRegistration'),
-                                style: TextStyle(
-                                  color: AppTheme.textPrimary(context),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
+                              Expanded(
+                                child: Text(
+                                  context.t.tr('newVehicleRegistration'),
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary(context),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               ),
                               IconButton(
@@ -284,6 +290,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                       FilteringTextInputFormatter.digitsOnly,
                                       LengthLimitingTextInputFormatter(12),
                                     ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildInputField(
+                                    _emailController,
+                                    context.t.tr('emailAddress') ?? 'Email Address',
+                                    LucideIcons.mail,
+                                    keyboardType: TextInputType.emailAddress,
                                   ),
                                   const SizedBox(height: 12),
                                   _buildInputField(_companyController, context.t.tr('companyOrganization'), LucideIcons.building),
@@ -383,6 +396,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                     _selectedCategory,
                                     owner,
                                     phone: _phoneController.text.trim(),
+                                    email: _emailController.text.trim(),
                                     company: _companyController.text.trim(),
                                     color: _colorController.text.trim(),
                                     makeModel: _makeController.text.trim(),
@@ -397,7 +411,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                     driverName: _driverNameController.text.isNotEmpty ? _driverNameController.text.trim() : owner,
                                     driverPhone: _driverPhoneController.text.isNotEmpty ? _driverPhoneController.text.trim() : _phoneController.text.trim(),
                                     driverCompany: _driverCompanyController.text.isNotEmpty ? _driverCompanyController.text.trim() : _companyController.text.trim(),
-                                    driverEmail: _driverEmailController.text.trim(),
+                                    driverEmail: _driverEmailController.text.isNotEmpty ? _driverEmailController.text.trim() : _emailController.text.trim(),
                                     autoSendEmail: _shouldEmail(context),
                                     autoSendSms: _shouldSms(context),
                                     propertiesLeft: _propertiesController.text.trim(),
@@ -408,6 +422,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                   _plateController.clear();
                                   _nameController.clear();
                                   _phoneController.clear();
+                                  _emailController.clear();
                                   _companyController.clear();
                                   _colorController.clear();
                                   _makeController.clear();
