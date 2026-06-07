@@ -2,7 +2,7 @@ import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { PrinterService } from './printer.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('printer')
+@Controller('api/printer')
 export class PrinterController {
   constructor(private readonly printerService: PrinterService) {}
 
