@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { useBreadcrumbStore } from "@/store/useBreadcrumbStore"
 import { useAppearance } from "@/providers/AppearanceProvider"
 import { useTheme } from "next-themes"
+import { toast } from "sonner"
 import { Icons8 } from "@/components/ui/icons8"
 import { cn } from "@/lib/utils"
 import { useSiteStore, ParkingSite } from "@/store/useSiteStore"
@@ -174,8 +175,15 @@ export default function SettingsPage() {
 
   const handleExport = async () => {
     try {
-      const response = await apiClient.get('/api/backup/export', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/backup/export`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) throw new Error("Export failed");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       const dateStr = new Date().toISOString().split('T')[0];
@@ -204,17 +212,23 @@ export default function SettingsPage() {
 
     const loadingToast = toast.loading("Restoring database from backup...");
     try {
-      const response = await apiClient.post('/api/backup/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/backup/import`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
       });
-      if (response.data?.success) {
+      
+      const data = await response.json();
+      if (response.ok && data.success) {
         toast.success("Database restored successfully!", { id: loadingToast });
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        throw new Error(response.data?.message || "Unknown error");
+        throw new Error(data.message || "Unknown error");
       }
     } catch (e: any) {
-      toast.error("Failed to restore backup: " + (e.response?.data?.message || e.message), { id: loadingToast });
+      toast.error("Failed to restore backup: " + e.message, { id: loadingToast });
       console.error(e);
     }
     e.target.value = ''; // Reset input
