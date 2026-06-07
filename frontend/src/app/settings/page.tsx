@@ -234,6 +234,40 @@ export default function SettingsPage() {
     e.target.value = ''; // Reset input
   };
 
+  const handleReset = async () => {
+    if (!confirm("FACTORY RESET WARNING: This will immediately delete ALL data in the system (Vehicles, Users, Settings, Payments) and re-create a default admin user. THIS CANNOT BE UNDONE. Are you 100% sure you want to proceed?")) {
+      return;
+    }
+
+    const verifyPrompt = prompt("Type 'RESET' to confirm you want to delete all data:");
+    if (verifyPrompt !== 'RESET') {
+      toast.error("Reset cancelled. You didn't type 'RESET'.");
+      return;
+    }
+
+    const loadingToast = toast.loading("Wiping database and resetting to factory defaults...");
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/backup/reset`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('parking-auth-token')}`
+        }
+      });
+      
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success("Factory Reset successful! You will be logged out.", { id: loadingToast });
+        localStorage.removeItem('parking-auth-token');
+        setTimeout(() => window.location.href = '/login', 2000);
+      } else {
+        throw new Error(data.message || "Unknown error");
+      }
+    } catch (e: any) {
+      toast.error("Failed to factory reset: " + e.message, { id: loadingToast });
+      console.error(e);
+    }
+  };
+
   if (!mounted) return null;
 
   return (
@@ -1022,6 +1056,35 @@ export default function SettingsPage() {
                         Select Backup to Restore
                       </button>
                     </div>
+                </div>
+              </div>
+
+              {/* FACTORY RESET CARD */}
+              <div className="bg-card border border-red-500/50 shadow-sm rounded-3xl overflow-hidden flex flex-col">
+                <div className="p-5 border-b border-red-500/20 bg-red-500/5 flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-red-500/20 border border-red-500/30">
+                        <Icons8 icon="error" className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-[13px] font-black uppercase tracking-tight text-red-500">Factory Reset</h3>
+                        <p className="text-[10px] font-bold text-red-500/70">Completely wipe system and restore default settings</p>
+                    </div>
+                </div>
+                <div className="p-6">
+                    <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-xl mb-6">
+                      <h4 className="text-xs font-black text-red-600 flex items-center gap-2 mb-1">
+                        <Icons8 icon="siren" className="w-5 h-5 text-red-600 animate-pulse" />
+                        EXTREME DANGER
+                      </h4>
+                      <p className="text-[11px] text-red-600/90 font-medium">
+                        This action will immediately permanently delete EVERY SINGLE RECORD in your database. All users, all vehicles, all parking sessions, and all financial data will be permanently wiped. A single default admin account will be recreated.
+                      </p>
+                    </div>
+                    
+                    <button onClick={handleReset} className="px-6 py-3 bg-red-600 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/30 flex items-center gap-2">
+                      <Icons8 icon="multiply" className="w-4 h-4 invert" />
+                      Execute Factory Reset
+                    </button>
                 </div>
               </div>
             </motion.div>

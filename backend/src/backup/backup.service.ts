@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Prisma } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class BackupService {
@@ -83,7 +84,55 @@ export class BackupService {
         await tx.accessLog.createMany({ data: data.accessLogs });
       }
 
-      this.logger.log('Data restore completed successfully.');
+      this.logger.log('Database restore completed successfully');
+    });
+  }
+
+  async factoryReset(): Promise<void> {
+    this.logger.warn('Starting full database Factory Reset...');
+
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // 1. DELETE EVERYTHING
+      await tx.accessLog.deleteMany();
+      await tx.payment.deleteMany();
+      await tx.expense.deleteMany();
+      await tx.parkingSession.deleteMany();
+      await tx.vehicle.deleteMany();
+      await tx.vehicleCategory.deleteMany();
+      await tx.expenseCategory.deleteMany();
+      await tx.camera.deleteMany();
+      await tx.user.deleteMany();
+      await tx.parkingSite.deleteMany();
+      await tx.systemSettings.deleteMany();
+
+      this.logger.log('All existing data wiped.');
+
+      // 2. RE-SEED DEFAULTS
+      const hashedPassword = await bcrypt.hash('password123', 10);
+      await tx.user.create({
+        data: {
+          name: 'System Admin',
+          phone: '0000000000',
+          email: 'admin@parking.co',
+          password: hashedPassword,
+          role: 'ADMIN',
+        },
+      });
+
+      const builtInCategories = ['Salary', 'Maintenance'];
+      for (const name of builtInCategories) {
+        await tx.expenseCategory.create({
+          data: { name },
+        });
+      }
+
+      await tx.systemSettings.create({
+        data: {
+          id: 'global',
+        }
+      });
+
+      this.logger.log('Factory defaults re-seeded.');
     });
   }
 }

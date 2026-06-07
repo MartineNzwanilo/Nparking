@@ -51,4 +51,15 @@ export class BackupController {
       });
     }
   }
+
+  @Post('reset')
+  async resetData(@Res() res: Response) {
+    try {
+      await this.backupService.factoryReset();
+      return res.status(HttpStatus.OK).json({ success: true, message: 'Factory reset successful.' });
+    } catch (error) {
+      console.error('Factory reset failed:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ success: false, message: 'Factory reset failed.' });
+    }
+  }
 }
