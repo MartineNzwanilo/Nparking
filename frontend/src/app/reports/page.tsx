@@ -17,6 +17,8 @@ import { Icons8 } from "@/components/ui/icons8"
 import { apiClient } from "@/lib/apiClient"
 import { exportCSV, exportPDF } from "@/lib/exportUtils"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 
@@ -47,11 +49,11 @@ function SortIcon({ col, sortCol, dir }: { col: string; sortCol: string; dir: 'a
 }
 
 // ─── Export Bar ───────────────────────────────────────────────────────────────
-function ExportBar({ onPDF, onCSV, isExporting, rowCount, filtered }: {
-  onPDF: () => void; onCSV: () => void; isExporting: boolean; rowCount: number; filtered: number
+function ExportBar({ onPDF, onCSV, onPrint, isExporting, rowCount, filtered }: {
+  onPDF: () => void; onCSV: () => void; onPrint: () => void; isExporting: boolean; rowCount: number; filtered: number
 }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex items-center gap-2 flex-wrap">
       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
         {filtered} of {rowCount} record{rowCount !== 1 ? 's' : ''}
       </span>
@@ -59,18 +61,26 @@ function ExportBar({ onPDF, onCSV, isExporting, rowCount, filtered }: {
       <button
         onClick={onCSV}
         disabled={isExporting || filtered === 0}
-        className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-secondary text-foreground hover:bg-primary/10 hover:text-primary border border-border flex items-center gap-2 transition-all disabled:opacity-40"
+        className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest bg-secondary text-foreground hover:bg-primary/10 hover:text-primary border border-border flex items-center gap-2 transition-all disabled:opacity-40"
       >
         <Icons8 icon="export-csv" className="w-4 h-4" />
-        Export CSV
+        CSV
+      </button>
+      <button
+        onClick={onPrint}
+        disabled={isExporting || filtered === 0}
+        className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-2 transition-all disabled:opacity-40 shadow-lg shadow-emerald-500/20"
+      >
+        <Icons8 icon="printer" className="w-4 h-4 invert" />
+        Print
       </button>
       <button
         onClick={onPDF}
         disabled={isExporting || filtered === 0}
-        className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary/90 flex items-center gap-2 transition-all disabled:opacity-40 shadow-lg shadow-primary/20"
+        className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary/90 flex items-center gap-2 transition-all disabled:opacity-40 shadow-lg shadow-primary/20"
       >
         <Icons8 icon="pdf" className="w-4 h-4 invert" />
-        {isExporting ? 'Generating...' : 'Export PDF'}
+        {isExporting ? 'PDF...' : 'PDF'}
       </button>
     </div>
   )
@@ -325,6 +335,7 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [plateSearch, setPlateSearch] = useState('')
   const [isExporting, setIsExporting] = useState(false)
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false)
 
   useEffect(() => {
     setBreadcrumbs([
@@ -538,6 +549,7 @@ export default function ReportsPage() {
                 <ExportBar
                   onPDF={handlePDF}
                   onCSV={handleCSV}
+                  onPrint={() => setIsPrintModalOpen(true)}
                   isExporting={isExporting}
                   rowCount={rows.length}
                   filtered={rows.length}
@@ -556,6 +568,98 @@ export default function ReportsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <PrintOptionsModal
+        open={isPrintModalOpen}
+        onOpenChange={setIsPrintModalOpen}
+        rows={rows}
+        summary={summary}
+        title={activeConfig.label}
+      />
     </div>
   )
+}
+
+function PrintOptionsModal({ open, onOpenChange, rows, summary, title }: { open: boolean, onOpenChange: (open: boolean) => void, rows: any[], summary: any, title: string }) {
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      const saved = localStorage.getItem('network_printers_list');
+      if (saved) {
+        try { setPrinters(JSON.parse(saved)); } catch (e) {}
+      }
+    }
+  }, [open]);
+
+  const handleSystemPrint = () => {
+    onOpenChange(false);
+    setTimeout(() => window.print(), 100);
+  };
+
+  const handleNetworkPrint = async (printer: any) => {
+    setLoading(true);
+    try {
+      let text = `=== ${title.toUpperCase()} ===\n\n`;
+      if (summary) {
+        Object.entries(summary).forEach(([k, v]) => {
+          text += `${k.replace(/([A-Z])/g, ' $1').toUpperCase()}: ${v}\n`;
+        });
+        text += "-----------------------\n";
+      }
+      text += `Total Records: ${rows.length}\n`;
+      text += "=======================\n\n\n\n\n";
+
+      await apiClient.post("/api/printer/print", {
+        ip: printer.ip,
+        port: printer.port || 9100,
+        data: text,
+      });
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Print Options</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 mt-4">
+          <Button variant="outline" className="w-full justify-start h-12" onClick={handleSystemPrint}>
+            <Icons8 icon="printer" className="w-5 h-5 mr-3" />
+            Standard Print (A4)
+          </Button>
+          
+          {printers.length > 0 && (
+            <div className="pt-4 pb-2">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Network Thermal Printers</h4>
+              <div className="space-y-2">
+                {printers.map(p => (
+                  <Button key={p.id} variant="secondary" className="w-full justify-start h-12 relative" disabled={loading} onClick={() => handleNetworkPrint(p)}>
+                    <Icons8 icon="box" className="w-5 h-5 mr-3" />
+                    <div className="flex flex-col items-start">
+                      <span>{p.name}</span>
+                      <span className="text-[10px] opacity-70 font-mono">{p.ip}:{p.port}</span>
+                    </div>
+                    {p.isDefault && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] bg-primary/20 text-primary px-2 py-0.5 rounded-md">Default</span>}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {printers.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-4 text-center">
+              No thermal printers configured.<br/>Add them in Settings &gt; Printers.
+            </p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

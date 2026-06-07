@@ -9,6 +9,16 @@ import { Icons8 } from "@/components/ui/icons8"
 import { cn } from "@/lib/utils"
 import { useSiteStore, ParkingSite } from "@/store/useSiteStore"
 
+export interface NetworkPrinter {
+  id: string;
+  name: string;
+  ip: string;
+  port: number;
+  paperSize: string; // '80mm' or '58mm'
+  isDefault: boolean;
+  printSimultaneously: boolean;
+}
+
 const ACCENT_COLORS = [
     { label: "Sky Blue",    value: "#04a9f5" },
     { label: "Indigo",      value: "#4680ff" },
@@ -48,6 +58,15 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("appearance")
   const [mounted, setMounted] = useState(false)
   const { parkingSites, activeSiteId } = useSiteStore()
+  
+  const [printers, setPrinters] = useState<NetworkPrinter[]>([]);
+  const [newPrinter, setNewPrinter] = useState<Partial<NetworkPrinter>>({ port: 9100, paperSize: '80mm', isDefault: false, printSimultaneously: false });
+  const [isAddingPrinter, setIsAddingPrinter] = useState(false);
+
+  const savePrinters = (newPrinters: NetworkPrinter[]) => {
+    setPrinters(newPrinters);
+    localStorage.setItem('network_printers_list', JSON.stringify(newPrinters));
+  };
   
   const [settings, setSettings] = useState({
     smtpHost: '',
@@ -104,6 +123,11 @@ export default function SettingsPage() {
       { label: "Administration", href: "/settings" }
     ])
     
+    const savedPrinters = localStorage.getItem('network_printers_list');
+    if (savedPrinters) {
+      try { setPrinters(JSON.parse(savedPrinters)); } catch (e) {}
+    }
+
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings`)
       .then(res => res.json())
       .then(data => {
@@ -169,6 +193,7 @@ export default function SettingsPage() {
              { value: "general",      icon: "combo-chart",    label: "General"      },
              { value: "security",     icon: "lock",   label: "Security"     },
              { value: "notifications",icon: "bell",     label: "Notifications"},
+             { value: "printers",     icon: "printer",  label: "Printers"     },
            ].map(tab => (
              <button
                key={tab.value}
@@ -729,7 +754,112 @@ export default function SettingsPage() {
             </motion.div>
           )}
 
-          {activeTab !== "appearance" && activeTab !== "notifications" && activeTab !== "general" && (
+          {activeTab === "printers" && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col gap-8"
+            >
+              <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden">
+                <div className="p-5 border-b border-border/50 bg-secondary/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                      <Icons8 icon="printer" className="w-5 h-5 text-cyan-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-[13px] font-black uppercase tracking-tight text-foreground">Exposed Network Printers</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground">Manage IP thermal printers for printing receipts and reports.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsAddingPrinter(!isAddingPrinter)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    {isAddingPrinter ? 'Cancel' : 'Add Printer'}
+                  </button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                  {isAddingPrinter && (
+                    <div className="bg-secondary/20 p-4 rounded-xl border border-border space-y-4 mb-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground">Printer Name</label>
+                          <input type="text" value={newPrinter.name || ''} onChange={(e) => setNewPrinter({...newPrinter, name: e.target.value})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none" placeholder="e.g. Main Gate Printer" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground">IP Address</label>
+                          <input type="text" value={newPrinter.ip || ''} onChange={(e) => setNewPrinter({...newPrinter, ip: e.target.value})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none" placeholder="192.168.1.100" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground">Port</label>
+                          <input type="number" value={newPrinter.port || 9100} onChange={(e) => setNewPrinter({...newPrinter, port: parseInt(e.target.value)})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground">Paper Size</label>
+                          <select value={newPrinter.paperSize || '80mm'} onChange={(e) => setNewPrinter({...newPrinter, paperSize: e.target.value})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none">
+                            <option value="80mm">80mm</option>
+                            <option value="58mm">58mm</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3 mt-4">
+                        <button 
+                          onClick={() => {
+                            if (newPrinter.name && newPrinter.ip) {
+                              const p: NetworkPrinter = { id: Date.now().toString(), name: newPrinter.name, ip: newPrinter.ip, port: newPrinter.port || 9100, paperSize: newPrinter.paperSize || '80mm', isDefault: printers.length === 0, printSimultaneously: false };
+                              savePrinters([...printers, p]);
+                              setNewPrinter({ port: 9100, paperSize: '80mm' });
+                              setIsAddingPrinter(false);
+                            }
+                          }}
+                          className="px-5 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest"
+                        >
+                          Save Printer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {printers.length === 0 && !isAddingPrinter ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Icons8 icon="printer" className="w-12 h-12 opacity-20 mx-auto mb-3" />
+                      <p className="text-sm font-medium">No printers configured.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {printers.map(p => (
+                        <div key={p.id} className="flex items-center justify-between p-4 bg-secondary/10 border border-border rounded-xl">
+                          <div>
+                            <h4 className="font-bold text-foreground flex items-center gap-2">
+                              {p.name} 
+                              {p.isDefault && <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">Default</span>}
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground">{p.ip}:{p.port} • {p.paperSize}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!p.isDefault && (
+                              <button onClick={() => savePrinters(printers.map(x => ({...x, isDefault: x.id === p.id})))} className="text-[10px] font-bold text-primary px-3 py-1 bg-primary/10 rounded-lg">
+                                Set Default
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => savePrinters(printers.filter(x => x.id !== p.id))}
+                              className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg"
+                            >
+                              <Icons8 icon="trash" className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab !== "appearance" && activeTab !== "notifications" && activeTab !== "general" && activeTab !== "printers" && (
              <div className="flex flex-col items-center justify-center h-[400px] border border-dashed border-border rounded-3xl bg-card/30">
                <Icons8 icon="road-worker" className="w-16 h-16 opacity-20 mb-4" />
                <h3 className="text-sm font-black tracking-widest uppercase text-muted-foreground">Module Under Construction</h3>

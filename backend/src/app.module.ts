@@ -15,6 +15,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { UploadModule } from './upload/upload.module';
 import { ExpenseModule } from './expense/expense.module';
+import { PrinterModule } from './printer/printer.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ExpenseModule } from './expense/expense.module';
       serveRoot: '/uploads',
     }),
     ExpenseModule,
+    PrinterModule,
   ],
   controllers: [AppController],
   providers: [AppService, NotificationService],

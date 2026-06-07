@@ -49,6 +49,7 @@ export default function ExpensesPage() {
   // Modals
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -96,7 +97,7 @@ export default function ExpensesPage() {
   const totalAmount = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
   const handlePrint = () => {
-    window.print();
+    setIsPrintModalOpen(true);
   };
 
   return (
@@ -269,6 +270,13 @@ export default function ExpensesPage() {
         categories={categories}
         users={users}
         onSaved={fetchData}
+      />
+      {/* Print Options Modal */}
+      <PrintOptionsModal
+        open={isPrintModalOpen}
+        onOpenChange={setIsPrintModalOpen}
+        expenses={filteredExpenses}
+        totalAmount={totalAmount}
       />
     </Container>
   );
@@ -445,6 +453,90 @@ function AddExpenseModal({ open, onOpenChange, categories, users, onSaved }: { o
             <Button type="submit" disabled={loading || !categoryId}>{loading ? "Saving..." : "Save Expense"}</Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PrintOptionsModal({ open, onOpenChange, expenses, totalAmount }: { open: boolean, onOpenChange: (open: boolean) => void, expenses: any[], totalAmount: number }) {
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      const saved = localStorage.getItem('network_printers_list');
+      if (saved) {
+        try { setPrinters(JSON.parse(saved)); } catch (e) {}
+      }
+    }
+  }, [open]);
+
+  const handleSystemPrint = () => {
+    onOpenChange(false);
+    setTimeout(() => window.print(), 100);
+  };
+
+  const handleNetworkPrint = async (printer: any) => {
+    setLoading(true);
+    try {
+      let text = "=== EXPENSES REPORT ===\n";
+      text += `Total: TZS ${totalAmount.toLocaleString()}\n`;
+      text += "-----------------------\n";
+      expenses.forEach(exp => {
+        text += `${exp.category?.name || 'Unknown'}: -TZS ${exp.amount.toLocaleString()}\n`;
+      });
+      text += "=======================\n\n\n\n\n";
+
+      await api.post("/api/printer/print", {
+        ip: printer.ip,
+        port: printer.port || 9100,
+        data: text,
+      });
+      toast.success(`Printed to ${printer.name}`);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error("Failed to print to network printer");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Print Options</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 mt-4">
+          <Button variant="outline" className="w-full justify-start h-12" onClick={handleSystemPrint}>
+            <Icons8 icon="printer" className="w-5 h-5 mr-3" />
+            Standard Print (A4)
+          </Button>
+          
+          {printers.length > 0 && (
+            <div className="pt-4 pb-2">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Network Thermal Printers</h4>
+              <div className="space-y-2">
+                {printers.map(p => (
+                  <Button key={p.id} variant="secondary" className="w-full justify-start h-12 relative" disabled={loading} onClick={() => handleNetworkPrint(p)}>
+                    <Icons8 icon="box" className="w-5 h-5 mr-3" />
+                    <div className="flex flex-col items-start">
+                      <span>{p.name}</span>
+                      <span className="text-[10px] opacity-70 font-mono">{p.ip}:{p.port}</span>
+                    </div>
+                    {p.isDefault && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] bg-primary/20 text-primary px-2 py-0.5 rounded-md">Default</span>}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {printers.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-4 text-center">
+              No thermal printers configured.<br/>Add them in Settings &gt; Printers.
+            </p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
