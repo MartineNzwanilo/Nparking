@@ -177,7 +177,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/backup/export`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('parking-auth-token')}`
         }
       });
       if (!response.ok) throw new Error("Export failed");
@@ -215,7 +215,7 @@ export default function SettingsPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/backup/import`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('parking-auth-token')}`
         },
         body: formData
       });
@@ -256,7 +256,7 @@ export default function SettingsPage() {
              { value: "security",     icon: "lock",   label: "Security"     },
              { value: "notifications",icon: "bell",     label: "Notifications"},
              { value: "printers",     icon: "printer",  label: "Printers"     },
-             { value: "backup",       icon: "database",  label: "Backup & Restore" },
+             { value: "backup",       icon: "synchronize",  label: "Backup & Restore" },
            ].map(tab => (
              <button
                key={tab.value}
@@ -970,7 +970,7 @@ export default function SettingsPage() {
               <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden flex flex-col">
                 <div className="p-5 border-b border-border/50 bg-emerald-500/5 flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                        <Icons8 icon="database" className="w-5 h-5 text-emerald-500" />
+                        <Icons8 icon="export-csv" className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div>
                         <h3 className="text-[13px] font-black uppercase tracking-tight text-foreground">Data Export</h3>
@@ -983,7 +983,7 @@ export default function SettingsPage() {
                       You can keep this file safe offline and use it to restore the system if anything goes wrong.
                     </p>
                     <button onClick={handleExport} className="px-6 py-3 bg-emerald-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2">
-                      <Icons8 icon="download" className="w-4 h-4 invert" />
+                      <Icons8 icon="save" className="w-4 h-4 invert" />
                       Download Full Backup
                     </button>
                 </div>
@@ -1002,7 +1002,7 @@ export default function SettingsPage() {
                 <div className="p-6">
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-6">
                       <h4 className="text-xs font-bold text-red-500 flex items-center gap-2 mb-1">
-                        <Icons8 icon="high-risk" className="w-4 h-4 text-red-500" />
+                        <Icons8 icon="error" className="w-4 h-4 text-red-500" />
                         DANGER ZONE
                       </h4>
                       <p className="text-[11px] text-red-500/80 font-medium">
@@ -1018,7 +1018,7 @@ export default function SettingsPage() {
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
                       />
                       <button className="px-6 py-3 bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-all shadow-xl shadow-red-500/20 flex items-center gap-2 pointer-events-none">
-                        <Icons8 icon="upload" className="w-4 h-4 invert" />
+                        <Icons8 icon="synchronize" className="w-4 h-4 invert" />
                         Select Backup to Restore
                       </button>
                     </div>
