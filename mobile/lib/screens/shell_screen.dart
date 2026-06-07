@@ -10,6 +10,7 @@ import '../providers/vehicle_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/admin_provider.dart';
 import 'activity_screen.dart';
+import 'admin/admin_expense_screen.dart';
 import 'admin/admin_locations_screen.dart';
 import 'admin/admin_overview_screen.dart';
 import 'admin/admin_reports_screen.dart';
@@ -57,7 +58,7 @@ class _ShellScreenState extends State<ShellScreen> {
         AdminOverviewScreen(),
         AdminLocationsScreen(),
         AdminSurveillanceScreen(),
-        ActivityScreen(), // Added Activity Screen for Admin
+        AdminExpenseScreen(), // Replaced Activity with Expenses
         AdminReportsScreen(),
         AdminVehiclesScreen(),
       ];

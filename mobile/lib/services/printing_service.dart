@@ -356,8 +356,11 @@ class PrintingService {
       bytes += generator.hr();
       bytes += generator.feed(1);
 
-      // ── Summary Block ─────────────────────────────────────────────────────
-      if (summary != null && summary.isNotEmpty) {
+      if (title.toUpperCase() == 'FINANCIALS') {
+        bytes += _buildIncomeStatementBytes(generator, summary, rows);
+      } else {
+        // ── Summary Block ─────────────────────────────────────────────────────
+        if (summary != null && summary.isNotEmpty) {
         bytes += generator.text('SUMMARY', styles: const PosStyles(bold: true));
         bytes += generator.feed(1);
         for (final entry in summary.entries) {
@@ -420,6 +423,8 @@ class PrintingService {
         }
       }
 
+      }
+
       bytes += generator.hr();
       bytes += generator.text(
         'End of Report',
@@ -433,6 +438,60 @@ class PrintingService {
       debugPrint('[PrintingService] Failed to print admin report: $e');
       throw Exception('Failed to print admin report: $e');
     }
+  }
+
+  static List<int> _buildIncomeStatementBytes(Generator generator, Map<String, dynamic>? summary, List<dynamic> rows) {
+    List<int> bytes = [];
+    final grossRevenue = (summary?['grossRevenue'] as num?)?.toDouble() ?? 0;
+    final totalExpenses = (summary?['totalExpenses'] as num?)?.toDouble() ?? 0;
+    final netProfit = (summary?['netProfit'] as num?)?.toDouble() ?? 0;
+
+    final expenseRows = rows.where((r) => (r as Map)['type'] == 'EXPENSE').toList();
+    final revenueRows = rows.where((r) => (r as Map)['type'] == 'REVENUE').toList();
+
+    // -- REVENUE --
+    bytes += generator.text('REVENUE', styles: const PosStyles(bold: true));
+    bytes += generator.feed(1);
+    for (var r in revenueRows) {
+      final map = r as Map;
+      final cat = _toAscii(map['category']?.toString() ?? 'Other');
+      final amt = (map['amount'] as num?)?.toDouble() ?? 0;
+      final amtStr = amt.toStringAsFixed(0);
+      final labelPad = cat.length > 20 ? cat.substring(0, 20) : cat.padRight(20);
+      final valuePad = amtStr.length > 12 ? amtStr.substring(amtStr.length - 12) : amtStr.padLeft(12);
+      bytes += generator.text('$labelPad$valuePad');
+    }
+    bytes += generator.hr(ch: '-');
+    final totalRevLabel = 'TOTAL REVENUE'.padRight(20);
+    final totalRevVal = grossRevenue.toStringAsFixed(0).padLeft(12);
+    bytes += generator.text('$totalRevLabel$totalRevVal', styles: const PosStyles(bold: true));
+    bytes += generator.feed(1);
+
+    // -- EXPENSES --
+    bytes += generator.text('EXPENSES', styles: const PosStyles(bold: true));
+    bytes += generator.feed(1);
+    for (var r in expenseRows) {
+      final map = r as Map;
+      final cat = _toAscii(map['category']?.toString() ?? 'Other');
+      final amt = (map['amount'] as num?)?.toDouble() ?? 0;
+      final amtStr = amt.toStringAsFixed(0);
+      final labelPad = cat.length > 20 ? cat.substring(0, 20) : cat.padRight(20);
+      final valuePad = amtStr.length > 12 ? amtStr.substring(amtStr.length - 12) : amtStr.padLeft(12);
+      bytes += generator.text('$labelPad$valuePad');
+    }
+    bytes += generator.hr(ch: '-');
+    final totalExpLabel = 'TOTAL EXPENSES'.padRight(20);
+    final totalExpVal = totalExpenses.toStringAsFixed(0).padLeft(12);
+    bytes += generator.text('$totalExpLabel$totalExpVal', styles: const PosStyles(bold: true));
+    bytes += generator.feed(1);
+
+    // -- NET INCOME --
+    bytes += generator.hr();
+    final netIncomeLabel = 'NET PROFIT / LOSS'.padRight(20);
+    final netIncomeVal = netProfit.toStringAsFixed(0).padLeft(12);
+    bytes += generator.text('$netIncomeLabel$netIncomeVal', styles: const PosStyles(bold: true, width: PosTextSize.size1, height: PosTextSize.size2));
+    
+    return bytes;
   }
 
 
@@ -672,6 +731,179 @@ class PrintingService {
         ],
       ),
     );
+  }
+
+  // ─── PDF doc builder for Expense Report ──────────────────────────────────
+  static Future<pw.Document> buildExpenseReportPdf(
+      List<dynamic> expenses, String dateRange, double total) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('NGEWA PARKING SYSTEM',
+                        style: pw.TextStyle(
+                            fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Expense Report',
+                        style: pw.TextStyle(
+                            fontSize: 18, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('Generated On:',
+                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                    pw.Text(DateFormat('MMM dd, yyyy - hh:mm a').format(DateTime.now()),
+                        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Period:',
+                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                    pw.Text(dateRange,
+                        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            pw.Divider(),
+            pw.SizedBox(height: 20),
+
+            // Summary Cards
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Total Expenses',
+                          style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                      pw.Text('TZS ${NumberFormat.decimalPattern().format(total)}',
+                          style: pw.TextStyle(
+                              fontSize: 24,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.red700)),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('Total Transactions',
+                          style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                      pw.Text('${expenses.length}',
+                          style: pw.TextStyle(
+                              fontSize: 24,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.blue700)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 30),
+
+            // Table Header
+            pw.Text('Transaction Details',
+                style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 10),
+
+            // Table
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+              columnWidths: const {
+                0: pw.FlexColumnWidth(2), // Date
+                1: pw.FlexColumnWidth(2), // Category
+                2: pw.FlexColumnWidth(3), // Description/Paid To
+                3: pw.FlexColumnWidth(2), // Amount
+              },
+              children: [
+                // Header Row
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Date', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Details', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Amount (TZS)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10), textAlign: pw.TextAlign.right),
+                    ),
+                  ],
+                ),
+                // Data Rows
+                ...expenses.map((exp) {
+                  final catName = exp['category']?['name'] ?? 'Unknown';
+                  final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+                  final date = DateTime.tryParse(exp['date'] ?? '') ?? DateTime.now();
+                  final desc = exp['description'] ?? '';
+                  final paidTo = exp['paidToUser']?['name'];
+
+                  String details = desc;
+                  if (paidTo != null) {
+                    details += details.isNotEmpty ? '\nPaid to: $paidTo' : 'Paid to: $paidTo';
+                  }
+                  if (details.isEmpty) details = '-';
+
+                  return pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(DateFormat('dd MMM yyyy, hh:mm a').format(date), style: const pw.TextStyle(fontSize: 9)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(catName, style: const pw.TextStyle(fontSize: 9)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(details, style: const pw.TextStyle(fontSize: 9)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(NumberFormat.decimalPattern().format(amount), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.red700), textAlign: pw.TextAlign.right),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text('End of Report', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey500)),
+            ),
+          ];
+        },
+      ),
+    );
+
+    return doc;
   }
 
   static bool _isProcessingPending = false;

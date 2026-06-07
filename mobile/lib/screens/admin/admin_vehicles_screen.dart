@@ -6,7 +6,12 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../core/constants.dart';
 import '../../providers/vehicle_provider.dart';
-
+import 'package:permission_handler/permission_handler.dart';
+import '../../widgets/admin_registration_dialog.dart';
+import '../scanner_screen.dart';
+import '../../services/printing_service.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/admin_provider.dart';
 class AdminVehiclesScreen extends StatefulWidget {
   const AdminVehiclesScreen({super.key});
 
@@ -79,6 +84,208 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
             child: Text(isBlacklisted ? 'WHITELIST' : 'BLACKLIST', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _confirmCheckOut(Map<String, dynamic> session, String plateNumber) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Check Out Vehicle?'),
+        content: Text('Are you sure you want to check out vehicle $plateNumber?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await context.read<VehicleProvider>().checkOutVehicle(session['id']);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Vehicle $plateNumber checked out successfully.'), backgroundColor: AppTheme.success),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to check out vehicle.')),
+                  );
+                }
+              }
+            },
+            child: const Text('CHECK OUT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCheckIn(Map<String, dynamic> vehicle) {
+    final provider = context.read<VehicleProvider>();
+    final auth = context.read<AuthProvider>();
+    final adminProvider = context.read<AdminProvider>();
+    final catName = vehicle['category']?['name'] ?? vehicle['categoryName'] ?? 'Sedan/SUV';
+    double amount = 0;
+    try {
+      final cat = provider.categories.firstWhere((c) => c['name'] == catName);
+      amount = (cat['price'] as num).toDouble();
+    } catch (_) {}
+
+    final bool hasGlobalAccess = auth.isAdmin && (auth.siteId == null || auth.siteId!.isEmpty || auth.siteId == 'null' || auth.siteId == 'all');
+    String? selectedSiteId = auth.siteId;
+    
+    if (hasGlobalAccess && adminProvider.sites.isNotEmpty) {
+      selectedSiteId = adminProvider.sites.first['id'];
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('Check In Vehicle?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to check in vehicle ${vehicle['plateNumber']} as $catName for TZS $amount?'),
+              if (hasGlobalAccess && adminProvider.sites.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text('Select Parking Site:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary(context))),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedSiteId,
+                  isExpanded: true,
+                  dropdownColor: Theme.of(context).cardColor,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: adminProvider.sites.map((s) => DropdownMenuItem<String>(
+                    value: s['id'],
+                    child: Text(s['name'] ?? 'Unknown Site'),
+                  )).toList(),
+                  onChanged: (val) {
+                    setStateDialog(() => selectedSiteId = val);
+                  },
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                try {
+                  final session = await provider.checkInVehicle(
+                    vehicle['plateNumber'], 
+                    catName, 
+                    amount, 
+                    driverName: vehicle['ownerName'],
+                    siteId: selectedSiteId,
+                  );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Vehicle ${vehicle['plateNumber']} checked in successfully.'), backgroundColor: AppTheme.success),
+                  );
+                  
+                  // Trigger print popup selector immediately after successful check-in
+                  PrintingService.printTicket(context, session).catchError((e) {
+                    debugPrint('Print ticket failed: $e');
+                  });
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to check in vehicle.')),
+                  );
+                }
+              }
+            },
+            child: const Text('CHECK IN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Future<void> _openScanner() async {
+    final status = await Permission.camera.request();
+    if (status.isGranted) {
+      if (!mounted) return;
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ScannerScreen(mode: ScannerMode.plate)),
+      );
+      if (result != null && result is String) {
+        if (mounted) {
+           showAdminRegistrationDialog(context, initialPlate: result);
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Camera permission is required')),
+        );
+      }
+    }
+  }
+
+  void _showRegistrationOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Register Vehicle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(LucideIcons.scanLine, color: AppTheme.primary),
+              ),
+              title: const Text('Scan License Plate', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Use camera to read the plate', style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                _openScanner();
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(LucideIcons.keyboard, color: AppTheme.primary),
+              ),
+              title: const Text('Manual Entry', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Type the license plate manually', style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                showAdminRegistrationDialog(context);
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -272,47 +479,83 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                   ),
                   
                   // Action buttons
-                  Row(
+                  Column(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: curIsBlacklisted
-                                ? AppTheme.success.withOpacity(0.15)
-                                : AppTheme.error.withOpacity(0.15),
-                            foregroundColor: curIsBlacklisted ? AppTheme.success : AppTheme.error,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: curIsBlacklisted
-                                    ? AppTheme.success.withOpacity(0.4)
-                                    : AppTheme.error.withOpacity(0.4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: curIsInside ? AppTheme.error.withOpacity(0.15) : AppTheme.success.withOpacity(0.15),
+                                foregroundColor: curIsInside ? AppTheme.error : AppTheme.success,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: curIsInside ? AppTheme.error.withOpacity(0.4) : AppTheme.success.withOpacity(0.4)),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
                               ),
+                              icon: Icon(curIsInside ? LucideIcons.logOut : LucideIcons.logIn, size: 18),
+                              label: Text(
+                                curIsInside ? 'CHECK OUT' : 'CHECK IN',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                if (curIsInside && curLatestSession != null) {
+                                  _confirmCheckOut(curLatestSession, currentVehicle['plateNumber'] ?? 'Unknown');
+                                } else {
+                                  _confirmCheckIn(currentVehicle);
+                                }
+                              },
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          icon: Icon(curIsBlacklisted ? LucideIcons.shieldCheck : LucideIcons.ban, size: 18),
-                          label: Text(
-                            curIsBlacklisted ? 'WHITELIST VEHICLE' : 'BLACKLIST VEHICLE',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _confirmToggleBlacklist(currentVehicle);
-                          },
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          backgroundColor: Theme.of(context).dividerColor.withOpacity(0.05),
-                          foregroundColor: AppTheme.textSecondary(context),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('CLOSE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: curIsBlacklisted
+                                    ? AppTheme.success.withOpacity(0.15)
+                                    : AppTheme.error.withOpacity(0.15),
+                                foregroundColor: curIsBlacklisted ? AppTheme.success : AppTheme.error,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: curIsBlacklisted
+                                        ? AppTheme.success.withOpacity(0.4)
+                                        : AppTheme.error.withOpacity(0.4),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              icon: Icon(curIsBlacklisted ? LucideIcons.shieldCheck : LucideIcons.ban, size: 18),
+                              label: Text(
+                                curIsBlacklisted ? 'WHITELIST VEHICLE' : 'BLACKLIST VEHICLE',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _confirmToggleBlacklist(currentVehicle);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              backgroundColor: Theme.of(context).dividerColor.withOpacity(0.05),
+                              foregroundColor: AppTheme.textSecondary(context),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('CLOSE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -507,6 +750,12 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
           const SizedBox(width: 10),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppTheme.primary,
+        onPressed: _showRegistrationOptions,
+        icon: const Icon(LucideIcons.userPlus, color: Colors.white),
+        label: const Text('Register', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: SafeArea(
         child: Consumer<VehicleProvider>(
           builder: (context, provider, child) {
@@ -697,31 +946,8 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                     ),
                   ),
                 ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            Divider(color: Theme.of(context).dividerColor.withOpacity(0.15)),
-            const SizedBox(height: 8),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: isBlacklisted ? Colors.white : AppTheme.error,
-                      backgroundColor: isBlacklisted ? AppTheme.error.withOpacity(0.8) : Colors.transparent,
-                      side: BorderSide(color: isBlacklisted ? Colors.transparent : AppTheme.error.withOpacity(0.5)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: Icon(isBlacklisted ? LucideIcons.shieldCheck : LucideIcons.ban, size: 16),
-                    label: Text(
-                      isBlacklisted ? 'REMOVE BLACKLIST' : 'BLACKLIST',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                    ),
-                    onPressed: () => _confirmToggleBlacklist(vehicle),
-                  ),
-                ),
+                const SizedBox(width: 8),
+                const Icon(LucideIcons.chevronRight, size: 20, color: Colors.grey),
               ],
             ),
           ],

@@ -322,6 +322,7 @@ export class SessionService {
       autoSendEmail?: boolean;
       autoSendSms?: boolean;
       propertiesLeft?: string;
+      siteId?: string;
     },
     actor: SessionActor,
   ) {
@@ -333,7 +334,8 @@ export class SessionService {
       );
     }
 
-    const { user, siteId } = await this.resolveOperatorContext(actor);
+    const { user, siteId: defaultSiteId } = await this.resolveOperatorContext(actor);
+    const siteId = data.siteId || defaultSiteId;
 
     let category = await this.prisma.vehicleCategory.findUnique({
       where: { name: categoryName },

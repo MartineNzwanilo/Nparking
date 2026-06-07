@@ -234,6 +234,7 @@ class VehicleProvider extends ChangeNotifier {
     bool? autoSendEmail,
     bool? autoSendSms,
     String? propertiesLeft,
+    String? siteId,
   }) async {
     try {
       final payload = {
@@ -247,6 +248,7 @@ class VehicleProvider extends ChangeNotifier {
         if (autoSendEmail != null) 'autoSendEmail': autoSendEmail,
         if (autoSendSms != null) 'autoSendSms': autoSendSms,
         if (propertiesLeft != null && propertiesLeft.isNotEmpty) 'propertiesLeft': propertiesLeft,
+        if (siteId != null && siteId.isNotEmpty) 'siteId': siteId,
       };
 
       bool forceOffline = SyncService().status == SyncStatus.offline;

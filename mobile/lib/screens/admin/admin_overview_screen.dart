@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/theme_provider.dart';
 import 'admin_settings_screen.dart';
+import '../activity_screen.dart';
 
 class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({super.key});
@@ -50,6 +51,15 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
         title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.primary)),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.activity, color: AppTheme.primary),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ActivityScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(LucideIcons.moon, color: AppTheme.primary),
             onPressed: () => context.read<ThemeProvider>().toggleTheme(),

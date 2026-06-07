@@ -51,6 +51,7 @@ export class SessionController {
       driverPhone?: string;
       driverCompany?: string;
       propertiesLeft?: string;
+      siteId?: string;
     },
   ) {
     return this.sessionService.checkIn(data, req.user);

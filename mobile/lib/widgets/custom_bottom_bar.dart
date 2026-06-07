@@ -90,7 +90,7 @@ class _CustomSimBottomNavBarState extends State<CustomSimBottomNavBar>
                 _buildAdminTab(0, LucideIcons.layoutDashboard, context.t.tr('dashboard')),
                 _buildAdminTab(1, LucideIcons.mapPin, context.t.tr('locations')),
                 _buildAdminTab(2, LucideIcons.camera, context.t.tr('surveillance')),
-                _buildAdminTab(3, LucideIcons.activity, context.t.tr('activity')),
+                _buildAdminTab(3, LucideIcons.wallet, 'Expenses'),
                 _buildAdminTab(4, LucideIcons.fileSpreadsheet, context.t.tr('reports')),
                 _buildAdminTab(5, LucideIcons.car, context.t.tr('vehicles')),
               ],

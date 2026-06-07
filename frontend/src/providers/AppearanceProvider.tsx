@@ -97,6 +97,7 @@ const defaultSidebarConfig: SidebarModule[] = [
     ]
   },
   { id: "reports", label: "Reports & Financials", icon: "combo-chart", href: "/reports", visible: true },
+  { id: "expenses", label: "Expenses", icon: "wallet", href: "/expenses", visible: true },
   { id: "staff", label: "Staff & Users", icon: "user-male-circle", href: "/staff", visible: true },
   { id: "administration", label: "Administration", icon: "briefcase", href: "/administration", visible: true },
 ];

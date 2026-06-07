@@ -9,7 +9,6 @@ import '../../providers/locale_provider.dart';
 import 'admin_watchmen_screen.dart';
 import 'admin_access_logs_screen.dart';
 import 'admin_notification_settings_screen.dart';
-import 'admin_expense_screen.dart';
 import '../printer_settings_screen.dart';
 
 class AdminSettingsScreen extends StatelessWidget {
@@ -85,22 +84,6 @@ class AdminSettingsScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const AdminAccessLogsScreen()),
-                );
-              },
-            ),
-
-            const SizedBox(height: 32),
-            Text('ACCOUNTING & FINANCE', style: TextStyle(color: AppTheme.textSecondary(context), fontWeight: FontWeight.bold, letterSpacing: 1.0, fontSize: 12)),
-            const SizedBox(height: 12),
-            _buildActionCard(
-              title: 'Expense Management',
-              subtitle: 'Record salaries, maintenance, and track expenses',
-              icon: LucideIcons.wallet,
-              context: context,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AdminExpenseScreen()),
                 );
               },
             ),
