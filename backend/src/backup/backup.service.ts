@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class BackupService {
@@ -31,7 +32,7 @@ export class BackupService {
   async importData(data: any): Promise<void> {
     this.logger.warn('Starting full database import (RESTORE)...');
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. DELETE EXISTING DATA (Reverse Dependency Order)
       await tx.accessLog.deleteMany();
       await tx.expense.deleteMany();
