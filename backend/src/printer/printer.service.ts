@@ -33,13 +33,17 @@ export class PrinterService {
       socket.connect(port, ip, () => {
         this.logger.log(`Connected to printer at ${ip}:${port}`);
         
+        // Initialize printer command (ESC @)
+        const initCmd = Buffer.from([0x1b, 0x40]);
+        
         // Ensure data is sent properly
-        const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf-8');
+        const payload = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf-8');
         
         // Full cut command
         const cutCmd = Buffer.from([0x1d, 0x56, 0x42, 0x00]);
         
-        socket.write(buffer);
+        socket.write(initCmd);
+        socket.write(payload);
         socket.write(cutCmd);
         
         socket.end(() => {
