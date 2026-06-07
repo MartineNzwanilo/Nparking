@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import api from "@/lib/api";
+import { apiClient as api } from "@/lib/apiClient";
 import { format } from "date-fns";
 import { Icons8 } from "@/components/ui/icons8";
 import { Container } from "@/components/layout/Container";
@@ -101,20 +101,23 @@ export default function ExpensesPage() {
 
   return (
     <Container className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      <StickyHeader title="Expenses Dashboard">
-        <div className="flex items-center gap-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={() => setIsAddCategoryOpen(true)}>
-            <Icons8 icon="tags" className="w-4 h-4 mr-2" />
-            Manage Categories
-          </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Icons8 icon="printer" className="w-4 h-4 mr-2" />
-            Export / Print
-          </Button>
-          <Button size="sm" onClick={() => setIsAddExpenseOpen(true)}>
-            <Icons8 icon="plus" className="w-4 h-4 mr-2 text-white" />
-            Add Expense
-          </Button>
+      <StickyHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+          <h1 className="text-2xl font-bold">Expenses Dashboard</h1>
+          <div className="flex items-center gap-2 print:hidden">
+            <Button variant="outline" size="sm" onClick={() => setIsAddCategoryOpen(true)}>
+              <Icons8 icon="tags" className="w-4 h-4 mr-2" />
+              Manage Categories
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Icons8 icon="printer" className="w-4 h-4 mr-2" />
+              Export / Print
+            </Button>
+            <Button size="sm" onClick={() => setIsAddExpenseOpen(true)}>
+              <Icons8 icon="plus" className="w-4 h-4 mr-2 text-white" />
+              Add Expense
+            </Button>
+          </div>
         </div>
       </StickyHeader>
 

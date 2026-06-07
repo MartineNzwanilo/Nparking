@@ -23,6 +23,7 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 // ─── Report Tabs Config ───────────────────────────────────────────────────────
 const REPORT_TABS = [
   { id: 'overview',        label: 'Overview',          icon: 'combo-chart',      endpoint: null },
+  { id: 'financial',       label: 'Financials & Expenses', icon: 'briefcase',    endpoint: 'financial' },
   { id: 'daily-revenue',   label: 'Daily Revenue',     icon: 'money-bag',        endpoint: 'daily-revenue' },
   { id: 'sessions',        label: 'Sessions',          icon: 'car',              endpoint: 'sessions' },
   { id: 'overstay',        label: 'Overstay & Fines',  icon: 'warning-shield',   endpoint: 'overstay' },
@@ -285,7 +286,8 @@ function SummaryCards({ summary }: { summary: Record<string, any> }) {
         const isFine = key.toLowerCase().includes('fine') || key.toLowerCase().includes('overstay')
         const isMoney = key.toLowerCase().includes('revenue') || key.toLowerCase().includes('paid') ||
           key.toLowerCase().includes('charge') || key.toLowerCase().includes('grand') ||
-          key.toLowerCase().includes('cash') || key.toLowerCase().includes('mobile') || isFine
+          key.toLowerCase().includes('cash') || key.toLowerCase().includes('mobile') ||
+          key.toLowerCase().includes('expense') || key.toLowerCase().includes('profit') || isFine
         return (
           <div key={key} className="flex flex-col gap-0.5">
             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
