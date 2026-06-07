@@ -31,7 +31,15 @@ export default function LoginPage() {
 
       // 3. Fetch user profile
       const userRes = await apiClient.get("/api/auth/me");
-      setUser(userRes.data);
+      const userData = userRes.data;
+
+      // Ensure only ADMIN users can access the web panel
+      if (userData.role !== 'ADMIN') {
+        localStorage.removeItem("parking-auth-token");
+        throw new Error("Access Denied: Web panel is for Administrators only.");
+      }
+
+      setUser(userData);
 
       // 4. Redirect to dashboard
       router.push("/");
