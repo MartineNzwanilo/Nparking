@@ -772,10 +772,17 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => setIsAddingPrinter(!isAddingPrinter)}
+                    onClick={() => {
+                      if (isAddingPrinter) {
+                        setIsAddingPrinter(false);
+                        setNewPrinter({ port: 9100, paperSize: '80mm' });
+                      } else {
+                        setIsAddingPrinter(true);
+                      }
+                    }}
                     className="px-4 py-2 bg-primary text-white rounded-lg text-[10px] font-bold uppercase tracking-widest"
                   >
-                    {isAddingPrinter ? 'Cancel' : 'Add Printer'}
+                    {isAddingPrinter ? 'Cancel' : ((newPrinter as any).id ? 'Edit Printer' : 'Add Printer')}
                   </button>
                 </div>
                 
@@ -807,15 +814,38 @@ export default function SettingsPage() {
                         <button 
                           onClick={() => {
                             if (newPrinter.name && newPrinter.ip) {
-                              const p: NetworkPrinter = { id: Date.now().toString(), name: newPrinter.name, ip: newPrinter.ip, port: newPrinter.port || 9100, paperSize: newPrinter.paperSize || '80mm', isDefault: printers.length === 0, printSimultaneously: false };
-                              savePrinters([...printers, p]);
+                              let finalIp = newPrinter.ip;
+                              let finalPort = newPrinter.port || 9100;
+                              if (finalIp.includes(':')) {
+                                const parts = finalIp.split(':');
+                                finalIp = parts[0];
+                                if (parts.length > 1 && parseInt(parts[1])) {
+                                  finalPort = parseInt(parts[1]);
+                                }
+                              }
+
+                              const p: NetworkPrinter = { 
+                                id: (newPrinter as any).id || Date.now().toString(), 
+                                name: newPrinter.name, 
+                                ip: finalIp, 
+                                port: finalPort, 
+                                paperSize: newPrinter.paperSize || '80mm', 
+                                isDefault: (newPrinter as any).id ? (newPrinter as any).isDefault : printers.length === 0, 
+                                printSimultaneously: false 
+                              };
+
+                              if ((newPrinter as any).id) {
+                                savePrinters(printers.map(x => x.id === p.id ? p : x));
+                              } else {
+                                savePrinters([...printers, p]);
+                              }
                               setNewPrinter({ port: 9100, paperSize: '80mm' });
                               setIsAddingPrinter(false);
                             }
                           }}
                           className="px-5 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest"
                         >
-                          Save Printer
+                          {(newPrinter as any).id ? 'Update Printer' : 'Save Printer'}
                         </button>
                       </div>
                     </div>
@@ -843,6 +873,15 @@ export default function SettingsPage() {
                                 Set Default
                               </button>
                             )}
+                            <button 
+                              onClick={() => {
+                                setNewPrinter(p);
+                                setIsAddingPrinter(true);
+                              }}
+                              className="text-indigo-500 hover:bg-indigo-500/10 p-2 rounded-lg"
+                            >
+                              <Icons8 icon="edit" className="w-4 h-4" />
+                            </button>
                             <button 
                               onClick={() => savePrinters(printers.filter(x => x.id !== p.id))}
                               className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg"
