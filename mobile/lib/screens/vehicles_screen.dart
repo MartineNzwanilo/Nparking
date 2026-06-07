@@ -1307,7 +1307,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          _showVehiclesCheckInDialog(context, vehicle);
+                          _quickCheckIn(context, vehicle);
                         }
                       },
                     ),

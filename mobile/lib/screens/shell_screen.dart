@@ -9,7 +9,7 @@ import '../providers/shell_navigation_provider.dart';
 import '../providers/vehicle_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/admin_provider.dart';
-import 'activity_screen.dart';
+import 'settings_screen.dart';
 import 'admin/admin_expense_screen.dart';
 import 'admin/admin_locations_screen.dart';
 import 'admin/admin_overview_screen.dart';
@@ -50,7 +50,7 @@ class _ShellScreenState extends State<ShellScreen> {
         DashboardScreen(),
         VehiclesScreen(),
         CheckInScreen(),
-        ActivityScreen(),
+        SettingsScreen(),
         ProfileScreen(),
       ];
 

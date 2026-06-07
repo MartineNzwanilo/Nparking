@@ -12,6 +12,7 @@ class AuthProvider extends ChangeNotifier {
   static const _userAutoPrintKey = 'auth_user_auto_print';
   static const _userAutoSendEmailKey = 'auth_user_auto_send_email';
   static const _userAutoSendSmsKey = 'auth_user_auto_send_sms';
+  static const _userAvatarUrlKey = 'auth_user_avatar_url';
 
   final ApiService _api = ApiService();
 
@@ -26,6 +27,7 @@ class AuthProvider extends ChangeNotifier {
   bool _autoPrint = true;
   bool _autoSendEmail = false;
   bool _autoSendSms = false;
+  String? _avatarUrl;
 
   bool get isLoading => _isLoading;
   bool get ready => _ready;
@@ -38,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
   bool get autoPrint => _autoPrint;
   bool get autoSendEmail => _autoSendEmail;
   bool get autoSendSms => _autoSendSms;
+  String? get avatarUrl => _avatarUrl;
   bool get isAdmin => _role == 'ADMIN';
 
   AuthProvider() {
@@ -56,6 +59,7 @@ class AuthProvider extends ChangeNotifier {
     _autoPrint = prefs.getBool(_userAutoPrintKey) ?? true;
     _autoSendEmail = prefs.getBool(_userAutoSendEmailKey) ?? false;
     _autoSendSms = prefs.getBool(_userAutoSendSmsKey) ?? false;
+    _avatarUrl = prefs.getString(_userAvatarUrlKey);
     ApiService.setAuthToken(_token);
     _ready = true;
     notifyListeners();
@@ -88,6 +92,7 @@ class AuthProvider extends ChangeNotifier {
       _autoPrint = user['autoPrint'] as bool? ?? true;
       _autoSendEmail = user['autoSendEmail'] as bool? ?? false;
       _autoSendSms = user['autoSendSms'] as bool? ?? false;
+      _avatarUrl = user['avatarUrl']?.toString();
       ApiService.setAuthToken(_token);
 
       final prefs = await SharedPreferences.getInstance();
@@ -100,6 +105,7 @@ class AuthProvider extends ChangeNotifier {
       await prefs.setBool(_userAutoPrintKey, _autoPrint);
       await prefs.setBool(_userAutoSendEmailKey, _autoSendEmail);
       await prefs.setBool(_userAutoSendSmsKey, _autoSendSms);
+      if (_avatarUrl != null) await prefs.setString(_userAvatarUrlKey, _avatarUrl!);
       
       // Save for offline login
       await prefs.setString('auth_offline_identifier', identifier.trim());
@@ -159,6 +165,7 @@ class AuthProvider extends ChangeNotifier {
     _autoPrint = true;
     _autoSendEmail = false;
     _autoSendSms = false;
+    _avatarUrl = null;
     ApiService.setAuthToken(null);
 
     final prefs = await SharedPreferences.getInstance();
@@ -171,6 +178,7 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove(_userAutoPrintKey);
     await prefs.remove(_userAutoSendEmailKey);
     await prefs.remove(_userAutoSendSmsKey);
+    await prefs.remove(_userAvatarUrlKey);
     notifyListeners();
   }
 
@@ -201,6 +209,37 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Failed to sync preferences with server: $e');
+    }
+  }
+
+  Future<void> updateProfile({String? password, String? avatarUrl}) async {
+    try {
+      final payload = <String, dynamic>{};
+      if (password != null && password.isNotEmpty) payload['password'] = password;
+      if (avatarUrl != null && avatarUrl.isNotEmpty) {
+        payload['avatarUrl'] = avatarUrl;
+        _avatarUrl = avatarUrl;
+        notifyListeners();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_userAvatarUrlKey, avatarUrl);
+      }
+
+      if (isAuthenticated && payload.isNotEmpty) {
+        await _api.patch('/users/profile/settings', payload);
+      }
+    } catch (e) {
+      print('Failed to update profile: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> uploadAvatar(String filePath) async {
+    try {
+      final url = await _api.uploadImage(filePath);
+      await updateProfile(avatarUrl: url);
+    } catch (e) {
+      print('Failed to upload avatar: $e');
+      rethrow;
     }
   }
 

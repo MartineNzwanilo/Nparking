@@ -55,6 +55,7 @@ export class UserService {
         autoPrint: data.autoPrint !== undefined ? data.autoPrint : true,
         autoSendEmail: data.autoSendEmail !== undefined ? data.autoSendEmail : false,
         autoSendSms: data.autoSendSms !== undefined ? data.autoSendSms : false,
+        avatarUrl: data.avatarUrl || null,
         isActive: true,
       },
       select: {
@@ -92,6 +93,7 @@ export class UserService {
     if ('autoPrint' in data) updateData.autoPrint = data.autoPrint;
     if ('autoSendEmail' in data) updateData.autoSendEmail = data.autoSendEmail;
     if ('autoSendSms' in data) updateData.autoSendSms = data.autoSendSms;
+    if ('avatarUrl' in data) updateData.avatarUrl = data.avatarUrl;
 
     if ('email' in data) {
       if (data.email && data.email !== user.email) {

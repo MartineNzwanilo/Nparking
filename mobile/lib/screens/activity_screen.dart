@@ -474,12 +474,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Image.asset(
-          'assets/images/nps_logo.png',
-          height: 38,
-          fit: BoxFit.contain,
+        title: Text(
+          context.t.tr('activity'),
+          style: TextStyle(
+            color: AppTheme.textPrimary(context),
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        centerTitle: false,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.calendarDays, color: AppTheme.primary),

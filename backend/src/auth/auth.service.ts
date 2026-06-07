@@ -114,6 +114,7 @@ export class AuthService {
         autoPrint: user.autoPrint,
         autoSendEmail: user.autoSendEmail,
         autoSendSms: user.autoSendSms,
+        avatarUrl: user.avatarUrl,
       },
     };
   }
@@ -131,6 +132,7 @@ export class AuthService {
         autoPrint: true,
         autoSendEmail: true,
         autoSendSms: true,
+        avatarUrl: true,
       },
     });
     if (!user) throw new UnauthorizedException('User not found');

@@ -7,10 +7,13 @@ import '../core/parking_i18n.dart';
 import '../providers/auth_provider.dart';
 import '../providers/activity_provider.dart';
 import '../providers/vehicle_provider.dart';
-import '../providers/theme_provider.dart';
 import '../services/sync_service.dart';
 import '../core/database_helper.dart';
-import 'printer_settings_screen.dart';
+import '../providers/shell_navigation_provider.dart';
+import 'activity_screen.dart';
+import '../core/constants.dart';
+import 'package:image_picker/image_picker.dart';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -67,14 +70,26 @@ class ProfileScreen extends StatelessWidget {
                         ],
                       ),
                       child: Center(
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.primary,
-                          ),
-                        ),
+                        child: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
+                            ? ClipOval(
+                                child: Image.network(
+                                  auth.avatarUrl!.startsWith('http') 
+                                      ? auth.avatarUrl! 
+                                      : '${ApiConstants.baseUrl}${auth.avatarUrl}',
+                                  fit: BoxFit.cover,
+                                  width: 96,
+                                  height: 96,
+                                  errorBuilder: (_, __, ___) => Text(initials, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.primary)),
+                                ),
+                              )
+                            : Text(
+                                initials,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -97,72 +112,72 @@ class ProfileScreen extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                      const SizedBox(height: 10),
-                      Consumer<SyncService>(
-                        builder: (context, syncService, child) {
-                          IconData syncIcon;
-                          Color syncColor;
-                          String syncText;
-                          bool isSyncing = false;
+                    const SizedBox(height: 10),
+                    Consumer<SyncService>(
+                      builder: (context, syncService, child) {
+                        IconData syncIcon;
+                        Color syncColor;
+                        String syncText;
+                        bool isSyncing = false;
 
-                          switch (syncService.status) {
-                            case SyncStatus.synced:
-                              syncIcon = LucideIcons.checkCircle;
-                              syncColor = Colors.green;
-                              syncText = context.t.tr('synced');
-                              break;
-                            case SyncStatus.syncing:
-                              syncIcon = LucideIcons.refreshCw;
-                              syncColor = Colors.blue;
-                              syncText = context.t.tr('syncing');
-                              isSyncing = true;
-                              break;
-                            case SyncStatus.pending:
-                              syncIcon = LucideIcons.cloudOff;
-                              syncColor = Colors.orange;
-                              syncText = '${syncService.pendingCount} ${context.t.tr('pendingSync')}';
-                              break;
-                            case SyncStatus.offline:
-                              syncIcon = LucideIcons.wifiOff;
-                              syncColor = Colors.red;
-                              syncText = context.t.tr('offline');
-                              break;
-                          }
+                        switch (syncService.status) {
+                          case SyncStatus.synced:
+                            syncIcon = LucideIcons.checkCircle;
+                            syncColor = Colors.green;
+                            syncText = context.t.tr('synced');
+                            break;
+                          case SyncStatus.syncing:
+                            syncIcon = LucideIcons.refreshCw;
+                            syncColor = Colors.blue;
+                            syncText = context.t.tr('syncing');
+                            isSyncing = true;
+                            break;
+                          case SyncStatus.pending:
+                            syncIcon = LucideIcons.cloudOff;
+                            syncColor = Colors.orange;
+                            syncText = '${syncService.pendingCount} ${context.t.tr('pendingSync')}';
+                            break;
+                          case SyncStatus.offline:
+                            syncIcon = LucideIcons.wifiOff;
+                            syncColor = Colors.red;
+                            syncText = context.t.tr('offline');
+                            break;
+                        }
 
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: syncColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: syncColor.withOpacity(0.5)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                isSyncing
-                                    ? SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: syncColor,
-                                        ),
-                                      )
-                                    : Icon(syncIcon, color: syncColor, size: 14),
-                                const SizedBox(width: 6),
-                                Text(
-                                  syncText,
-                                  style: TextStyle(
-                                    color: syncColor, 
-                                    fontWeight: FontWeight.bold, 
-                                    fontSize: 11,
-                                  ),
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: syncColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: syncColor.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              isSyncing
+                                  ? SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: syncColor,
+                                      ),
+                                    )
+                                  : Icon(syncIcon, color: syncColor, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                syncText,
+                                style: TextStyle(
+                                  color: syncColor, 
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 11,
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -173,20 +188,34 @@ class ProfileScreen extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
-                      context,
-                      context.t.tr('vehicles'), 
-                      '${vehicles.length}', 
-                      LucideIcons.car,
+                    child: GestureDetector(
+                      onTap: () {
+                        final shellProv = context.read<ShellNavigationProvider>();
+                        shellProv.setIndex(1); // Vehicles index
+                      },
+                      child: _buildStatCard(
+                        context,
+                        context.t.tr('vehicles'), 
+                        '${vehicles.length}', 
+                        LucideIcons.car,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildStatCard(
-                      context,
-                      context.t.tr('activity'), 
-                      '${activities.length}', 
-                      LucideIcons.activity,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ActivityScreen()),
+                        );
+                      },
+                      child: _buildStatCard(
+                        context,
+                        context.t.tr('activity'), 
+                        '${activities.length}', 
+                        LucideIcons.activity,
+                      ),
                     ),
                   ),
                 ],
@@ -217,61 +246,29 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       _buildActionTile(
                         context,
-                        LucideIcons.refreshCw,
-                        context.t.tr('syncOfflineData'),
-                        context.t.tr('refreshLiveWatchmanData'),
+                        LucideIcons.camera,
+                        'Change Avatar',
+                        'Update your profile picture',
                         onTap: () async {
-                          final syncService = context.read<SyncService>();
-                          if (syncService.status == SyncStatus.offline) {
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               SnackBar(content: Text(context.t.tr('offline'))),
-                             );
-                             return;
-                          }
-                          await syncService.syncPendingQueue();
-                          await Future.wait([
-                            context.read<VehicleProvider>().fetchVehicles(),
-                            context.read<ActivityProvider>().fetchActivities(),
-                          ]);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(context.t.tr('watchmanDataSynced'))),
-                          );
-                        },
-                      ),
-                      Divider(
-                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                        height: 1,
-                      ),
-                      _buildActionTile(
-                        context,
-                        LucideIcons.trash2,
-                        'Clear App Cache',
-                        'Remove all offline stored data',
-                        onTap: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Clear App Cache'),
-                              content: const Text('This will delete all offline data and pending syncs. Proceed?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true), 
-                                  child: const Text('Clear', style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed == true) {
-                            await DatabaseHelper.instance.clearAll();
+                          try {
+                            final picker = ImagePicker();
+                            final image = await picker.pickImage(source: ImageSource.gallery);
+                            if (image != null && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Uploading avatar...')),
+                              );
+                              await context.read<AuthProvider>().uploadAvatar(image.path);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Avatar updated successfully')),
+                                );
+                              }
+                            }
+                          } catch (e) {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('App cache cleared successfully!')),
+                                SnackBar(content: Text('Failed to update avatar: $e')),
                               );
-                              // Refresh live data
-                              context.read<VehicleProvider>().fetchVehicles();
-                              context.read<ActivityProvider>().fetchActivities();
                             }
                           }
                         },
@@ -282,62 +279,12 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       _buildActionTile(
                         context,
-                        LucideIcons.printer,
-                        context.t.tr('printerSettings'),
-                        'Configure Network & Bluetooth Printers',
+                        LucideIcons.lock,
+                        'Change Password',
+                        'Update your account security',
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
-                          );
+                          _showChangePasswordDialog(context);
                         },
-                      ),
-                      Divider(
-                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                        height: 1,
-                      ),
-                      _buildSwitchTile(
-                        context,
-                        LucideIcons.printer,
-                        'Auto-Print Entry Ticket',
-                        'Instantly print QR slip on check-in',
-                        auth.autoPrint,
-                        (val) => auth.updatePreferences(autoPrint: val),
-                      ),
-                      Divider(
-                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                        height: 1,
-                      ),
-                      _buildSwitchTile(
-                        context,
-                        LucideIcons.mail,
-                        'Auto-Send Email Ticket',
-                        'Deliver HTML receipts to drivers',
-                        auth.autoSendEmail,
-                        (val) => auth.updatePreferences(autoSendEmail: val),
-                      ),
-                      Divider(
-                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                        height: 1,
-                      ),
-                      _buildSwitchTile(
-                        context,
-                        LucideIcons.messageSquare,
-                        'Auto-Send Beem SMS',
-                        'Send dynamic details via Beem Africa',
-                        auth.autoSendSms,
-                        (val) => auth.updatePreferences(autoSendSms: val),
-                      ),
-                      Divider(
-                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05), 
-                        height: 1,
-                      ),
-                      _buildActionTile(
-                        context,
-                        LucideIcons.moon,
-                        context.t.tr('darkMode'),
-                        context.t.tr('tapToSwitch'),
-                        onTap: () => context.read<ThemeProvider>().toggleTheme(),
                       ),
                     ],
                   ),
@@ -473,44 +420,55 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSwitchTile(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String subtitle,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
+  void _showChangePasswordDialog(BuildContext context) {
+    final newPasswordController = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(12),
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardTheme.color,
+        title: Text('Change Password', style: TextStyle(color: AppTheme.textPrimary(context))),
+        content: TextField(
+          controller: newPasswordController,
+          obscureText: true,
+          style: TextStyle(color: AppTheme.textPrimary(context)),
+          decoration: InputDecoration(
+            labelText: 'New Password',
+            labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+            ),
+          ),
         ),
-        child: Icon(icon, color: AppTheme.textPrimary(context), size: 20),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: AppTheme.textPrimary(context),
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          color: AppTheme.textSecondary(context),
-          fontSize: 12,
-        ),
-      ),
-      trailing: Switch.adaptive(
-        value: value,
-        activeColor: AppTheme.primary,
-        onChanged: onChanged,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            onPressed: () async {
+              if (newPasswordController.text.trim().isEmpty) return;
+              try {
+                await context.read<AuthProvider>().updateProfile(password: newPasswordController.text.trim());
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password updated successfully')),
+                  );
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to update password: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

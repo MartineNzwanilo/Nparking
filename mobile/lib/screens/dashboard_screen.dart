@@ -10,6 +10,7 @@ import '../providers/locale_provider.dart';
 import '../providers/shell_navigation_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/vehicle_provider.dart';
+import 'activity_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -84,16 +85,14 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           _IconBtn(
-                            icon: LucideIcons.moon,
+                            icon: LucideIcons.activity,
                             isDark: isDark,
-                            onTap: () =>
-                                context.read<ThemeProvider>().toggleTheme(),
-                          ),
-                          const SizedBox(width: 8),
-                          _IconBtn(
-                            icon: LucideIcons.languages,
-                            isDark: isDark,
-                            onTap: () => _showLanguageSheet(context),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const ActivityScreen()),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -114,11 +113,6 @@ class DashboardScreen extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 20),
-
-                      // ── PRIMARY ACTION: Check In ──────────────────────
-                      _PrimaryCheckInButton(isDark: isDark),
-
-                      const SizedBox(height: 14),
 
                       // ── Secondary shortcuts ───────────────────────────
                       Row(
@@ -216,64 +210,6 @@ class DashboardScreen extends StatelessWidget {
         sessions.first['status'] == 'INSIDE';
   }
 
-  void _showLanguageSheet(BuildContext context) {
-    final localeProvider = context.read<LocaleProvider>();
-    final current = localeProvider.locale?.languageCode;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border:
-              Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(context.t.tr('language'),
-                  style: TextStyle(
-                      color:
-                          Theme.of(context).textTheme.bodyLarge?.color,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              _LangOption(
-                label: context.t.tr('systemDefault'),
-                selected: current == null,
-                onTap: () async {
-                  await localeProvider.clearLocale();
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              ),
-              _LangOption(
-                label: context.t.tr('english'),
-                selected: current == 'en',
-                onTap: () async {
-                  await localeProvider.setLocale(const Locale('en'));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              ),
-              _LangOption(
-                label: context.t.tr('kiswahili'),
-                selected: current == 'sw',
-                onTap: () async {
-                  await localeProvider.setLocale(const Locale('sw'));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -386,10 +322,21 @@ class _HeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
+        color: isDark ? null : Theme.of(context).cardTheme.color,
+        gradient: isDark ? const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF0D1B2E), Color(0xFF0A1628)],
+        ) : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.12 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.05),
         ),
       ),
       child: Row(
@@ -399,17 +346,17 @@ class _HeroCard extends StatelessWidget {
             width: 110,
             height: 110,
             child: CustomPaint(
-              painter: _ArcPainter(progress: ratio),
+              painter: _ArcPainter(progress: ratio, isDark: isDark),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       '$insideCount',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                        color: isDark ? Colors.white : AppTheme.textPrimary(context),
                         height: 1,
                       ),
                     ),
@@ -417,7 +364,7 @@ class _HeroCard extends StatelessWidget {
                       context.t.tr('inside'),
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: isDark ? Colors.white.withValues(alpha: 0.5) : AppTheme.textSecondary(context),
                         letterSpacing: 1.0,
                       ),
                     ),
@@ -439,7 +386,7 @@ class _HeroCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: isDark ? Colors.white.withValues(alpha: 0.4) : AppTheme.textSecondary(context),
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -448,6 +395,7 @@ class _HeroCard extends StatelessWidget {
                   label: context.t.tr('registered'),
                   value: '$registeredCount',
                   color: AppTheme.success,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 10),
                 // Occupancy bar
@@ -461,7 +409,7 @@ class _HeroCard extends StatelessWidget {
                           'Occupancy',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: isDark ? Colors.white.withValues(alpha: 0.4) : AppTheme.textSecondary(context),
                           ),
                         ),
                         Text(
@@ -481,7 +429,7 @@ class _HeroCard extends StatelessWidget {
                         value: ratio,
                         minHeight: 4,
                         backgroundColor:
-                            Colors.white.withValues(alpha: 0.08),
+                            isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
                         valueColor: const AlwaysStoppedAnimation<Color>(
                             AppTheme.primary),
                       ),
@@ -502,11 +450,13 @@ class _DarkStat extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    required this.isDark,
   });
 
   final String label;
   final String value;
   final Color color;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +487,7 @@ class _DarkStat extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 9,
-                color: Colors.white.withValues(alpha: 0.4),
+                color: isDark ? Colors.white.withValues(alpha: 0.4) : AppTheme.textSecondary(context),
                 letterSpacing: 0.4,
               ),
             ),
@@ -551,8 +501,9 @@ class _DarkStat extends StatelessWidget {
 // ── Arc Painter ──────────────────────────────────────────────────────────────
 
 class _ArcPainter extends CustomPainter {
-  const _ArcPainter({required this.progress});
+  const _ArcPainter({required this.progress, required this.isDark});
   final double progress;
+  final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -568,7 +519,7 @@ class _ArcPainter extends CustomPainter {
       sweep,
       false,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.08)
+        ..color = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05)
         ..style = PaintingStyle.stroke
         ..strokeWidth = sw
         ..strokeCap = StrokeCap.round,

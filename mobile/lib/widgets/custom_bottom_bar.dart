@@ -140,7 +140,7 @@ class _CustomSimBottomNavBarState extends State<CustomSimBottomNavBar>
                 Expanded(child: _buildWatchmanTab(0, LucideIcons.layoutDashboard, widget.shellContext.t.tr('dashboard'))),
                 Expanded(child: _buildWatchmanTab(1, LucideIcons.car, widget.shellContext.t.tr('vehicles'))),
                 const Expanded(child: SizedBox()), // Center spacing for floating button
-                Expanded(child: _buildWatchmanTab(3, LucideIcons.activity, widget.shellContext.t.tr('activity'))),
+                Expanded(child: _buildWatchmanTab(3, LucideIcons.settings, widget.shellContext.t.tr('settings'))),
                 Expanded(child: _buildWatchmanTab(4, LucideIcons.user, widget.shellContext.t.tr('myProfile'))),
               ],
             ),
@@ -282,22 +282,7 @@ class _CustomSimBottomNavBarState extends State<CustomSimBottomNavBar>
                 opacity: const AlwaysStoppedAnimation(0.70),
               ),
             );
-    } else if (index == 3) {
-      iconWidget = isSelected
-          ? Image.asset(
-              'assets/images/activity_icon.png',
-              width: 32,
-              height: 32,
-            )
-          : ColorFiltered(
-              colorFilter: grayscaleFilter,
-              child: Image.asset(
-                'assets/images/activity_icon.png',
-                width: 32,
-                height: 32,
-                opacity: const AlwaysStoppedAnimation(0.70),
-              ),
-            );
+
     } else if (index == 4) {
       iconWidget = isSelected
           ? Image.asset(
