@@ -601,10 +601,34 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     } catch (e) {
       if (context.mounted) Navigator.pop(context); // close loading
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Check in failed: $e'),
-          backgroundColor: AppTheme.error,
-        ));
+        String errorMessage = e.toString();
+        if (errorMessage.contains('message":"')) {
+          final match = RegExp(r'message":"([^"]+)"').firstMatch(errorMessage);
+          if (match != null) errorMessage = match.group(1)!;
+        } else if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(11);
+        }
+        
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(LucideIcons.alertTriangle, color: AppTheme.error),
+                const SizedBox(width: 10),
+                const Text('Check-in Failed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: Text(errorMessage, style: const TextStyle(fontSize: 14)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+              ),
+            ],
+          ),
+        );
       }
     }
   }
@@ -2309,10 +2333,35 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
                                       );
                                     }
                                   }
-                                } catch (_) {
+                                } catch (e) {
                                   if (scaffoldContext.mounted) {
-                                    ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                                      SnackBar(content: Text(scaffoldContext.t.tr('failedCheckInVehicle'))),
+                                    String errorMessage = e.toString();
+                                    if (errorMessage.contains('message":"')) {
+                                      final match = RegExp(r'message":"([^"]+)"').firstMatch(errorMessage);
+                                      if (match != null) errorMessage = match.group(1)!;
+                                    } else if (errorMessage.startsWith('Exception: ')) {
+                                      errorMessage = errorMessage.substring(11);
+                                    }
+                                    
+                                    showDialog(
+                                      context: scaffoldContext,
+                                      builder: (ctx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        title: Row(
+                                          children: [
+                                            const Icon(LucideIcons.alertTriangle, color: AppTheme.error),
+                                            const SizedBox(width: 10),
+                                            const Text('Check-in Failed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                          ],
+                                        ),
+                                        content: Text(errorMessage, style: const TextStyle(fontSize: 14)),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx),
+                                            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                                          ),
+                                        ],
+                                      ),
                                     );
                                   }
                                 }

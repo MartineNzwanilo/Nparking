@@ -172,6 +172,54 @@ export default function SettingsPage() {
     setIsSaving(false);
   }
 
+  const handleExport = async () => {
+    try {
+      const response = await apiClient.get('/api/backup/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('download', `nparking-backup-${dateStr}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Backup downloaded successfully!");
+    } catch (e) {
+      toast.error("Failed to download backup");
+      console.error(e);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("WARNING: This will WIPE the current database and completely replace it with the backup file. Any data created after the backup will be lost forever. Are you absolutely sure you want to proceed?")) {
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const loadingToast = toast.loading("Restoring database from backup...");
+    try {
+      const response = await apiClient.post('/api/backup/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (response.data?.success) {
+        toast.success("Database restored successfully!", { id: loadingToast });
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        throw new Error(response.data?.message || "Unknown error");
+      }
+    } catch (e: any) {
+      toast.error("Failed to restore backup: " + (e.response?.data?.message || e.message), { id: loadingToast });
+      console.error(e);
+    }
+    e.target.value = ''; // Reset input
+  };
+
   if (!mounted) return null;
 
   return (
@@ -194,6 +242,7 @@ export default function SettingsPage() {
              { value: "security",     icon: "lock",   label: "Security"     },
              { value: "notifications",icon: "bell",     label: "Notifications"},
              { value: "printers",     icon: "printer",  label: "Printers"     },
+             { value: "backup",       icon: "database",  label: "Backup & Restore" },
            ].map(tab => (
              <button
                key={tab.value}
@@ -898,7 +947,73 @@ export default function SettingsPage() {
             </motion.div>
           )}
 
-          {activeTab !== "appearance" && activeTab !== "notifications" && activeTab !== "general" && activeTab !== "printers" && (
+          {activeTab === "backup" && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8"
+            >
+              <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden flex flex-col">
+                <div className="p-5 border-b border-border/50 bg-emerald-500/5 flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <Icons8 icon="database" className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-[13px] font-black uppercase tracking-tight text-foreground">Data Export</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground">Download a complete snapshot of the system database</p>
+                    </div>
+                </div>
+                <div className="p-6">
+                    <p className="text-xs text-muted-foreground mb-6">
+                      Exporting creates a JSON backup of all vehicles, users, sessions, settings, and expenses currently in the database. 
+                      You can keep this file safe offline and use it to restore the system if anything goes wrong.
+                    </p>
+                    <button onClick={handleExport} className="px-6 py-3 bg-emerald-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2">
+                      <Icons8 icon="download" className="w-4 h-4 invert" />
+                      Download Full Backup
+                    </button>
+                </div>
+              </div>
+
+              <div className="bg-card border border-red-500/30 shadow-sm rounded-3xl overflow-hidden flex flex-col">
+                <div className="p-5 border-b border-red-500/20 bg-red-500/5 flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <Icons8 icon="warning-shield" className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-[13px] font-black uppercase tracking-tight text-red-500">System Restore</h3>
+                        <p className="text-[10px] font-bold text-red-500/70">Wipe and replace current data with a backup file</p>
+                    </div>
+                </div>
+                <div className="p-6">
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-6">
+                      <h4 className="text-xs font-bold text-red-500 flex items-center gap-2 mb-1">
+                        <Icons8 icon="high-risk" className="w-4 h-4 text-red-500" />
+                        DANGER ZONE
+                      </h4>
+                      <p className="text-[11px] text-red-500/80 font-medium">
+                        Restoring a backup will instantly drop the current active database and replace it with the backup contents. Any data generated after the backup was created will be permanently lost.
+                      </p>
+                    </div>
+                    
+                    <div className="relative inline-block">
+                      <input 
+                        type="file" 
+                        accept=".json" 
+                        onChange={handleImport}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                      />
+                      <button className="px-6 py-3 bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-all shadow-xl shadow-red-500/20 flex items-center gap-2 pointer-events-none">
+                        <Icons8 icon="upload" className="w-4 h-4 invert" />
+                        Select Backup to Restore
+                      </button>
+                    </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab !== "appearance" && activeTab !== "notifications" && activeTab !== "general" && activeTab !== "printers" && activeTab !== "backup" && (
              <div className="flex flex-col items-center justify-center h-[400px] border border-dashed border-border rounded-3xl bg-card/30">
                <Icons8 icon="road-worker" className="w-16 h-16 opacity-20 mb-4" />
                <h3 className="text-sm font-black tracking-widest uppercase text-muted-foreground">Module Under Construction</h3>

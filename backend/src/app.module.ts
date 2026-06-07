@@ -10,12 +10,14 @@ import { UserModule } from './user/user.module';
 import { ReportModule } from './report/report.module';
 import { CameraModule } from './camera/camera.module';
 import { DetectionModule } from './detection/detection.module';
+
 import { NotificationService } from './notification/notification.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { UploadModule } from './upload/upload.module';
 import { ExpenseModule } from './expense/expense.module';
 import { PrinterModule } from './printer/printer.module';
+import { BackupModule } from './backup/backup.module';
 
 @Module({
   imports: [
@@ -26,6 +28,7 @@ import { PrinterModule } from './printer/printer.module';
     }),
     ExpenseModule,
     PrinterModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [AppService, NotificationService],
