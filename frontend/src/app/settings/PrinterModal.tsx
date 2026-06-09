@@ -119,21 +119,19 @@ export function PrinterModal({ isOpen, onClose, printer, sites }: PrinterModalPr
                   />
                 </div>
 
-                {!printer && (
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Assigned Facility</label>
-                    <select
-                      value={siteId}
-                      onChange={(e) => setSiteId(e.target.value)}
-                      className="w-full h-12 px-4 bg-background border border-border rounded-xl text-[13px] font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
-                    >
-                      <option value="" disabled>Select a facility</option>
-                      {sites.filter(s => s.id !== "all").map(site => (
-                        <option key={site.id} value={site.id}>{site.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Assigned Facility</label>
+                  <select
+                    value={siteId}
+                    onChange={(e) => setSiteId(e.target.value)}
+                    className="w-full h-12 px-4 bg-background border border-border rounded-xl text-[13px] font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
+                  >
+                    <option value="" disabled>Select a facility</option>
+                    {sites.filter(s => s.id !== "all").map(site => (
+                      <option key={site.id} value={site.id}>{site.name}</option>
+                    ))}
+                  </select>
+                </div>
 
                 <div className="flex flex-col gap-4 mt-2">
                   <label className="flex items-center gap-3 cursor-pointer">

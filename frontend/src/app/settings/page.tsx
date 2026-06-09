@@ -929,7 +929,7 @@ export default function SettingsPage() {
                               <div className="flex items-start justify-between mt-4">
                                   <div>
                                       <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assigned Facility</p>
-                                      <p className="text-[13px] font-black text-foreground mt-0.5">{printer.site?.name || "Unknown"}</p>
+                                      <p className="text-[13px] font-black text-foreground mt-0.5">{parkingSites.find(s => s.id === printer.siteId)?.name || printer.site?.name || "Unknown"}</p>
                                   </div>
                               </div>
                             </div>
