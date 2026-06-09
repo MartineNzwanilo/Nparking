@@ -25,6 +25,7 @@ export class BackupService {
     data.payments = await this.prisma.payment.findMany();
     data.expenses = await this.prisma.expense.findMany();
     data.accessLogs = await this.prisma.accessLog.findMany();
+    data.printers = await this.prisma.printer.findMany();
 
     this.logger.log('Database export complete.');
     return data;
@@ -39,6 +40,7 @@ export class BackupService {
       await tx.expense.deleteMany();
       await tx.payment.deleteMany();
       await tx.parkingSession.deleteMany();
+      await tx.printer.deleteMany();
       await tx.camera.deleteMany();
       await tx.vehicle.deleteMany();
       await tx.user.deleteMany();
@@ -83,6 +85,9 @@ export class BackupService {
       if (data.accessLogs?.length) {
         await tx.accessLog.createMany({ data: data.accessLogs });
       }
+      if (data.printers?.length) {
+        await tx.printer.createMany({ data: data.printers });
+      }
 
       this.logger.log('Database restore completed successfully');
     });
@@ -100,6 +105,7 @@ export class BackupService {
       await tx.vehicle.deleteMany();
       await tx.vehicleCategory.deleteMany();
       await tx.expenseCategory.deleteMany();
+      await tx.printer.deleteMany();
       await tx.camera.deleteMany();
       await tx.user.deleteMany();
       await tx.parkingSite.deleteMany();

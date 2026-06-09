@@ -120,6 +120,9 @@ export class SiteService {
       );
     }
 
+    await this.prisma.printer.deleteMany({ where: { siteId: id } });
+    await this.prisma.camera.deleteMany({ where: { siteId: id } });
+
     return this.prisma.parkingSite.delete({
       where: { id },
     });
