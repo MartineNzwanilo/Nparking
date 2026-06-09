@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { useSiteStore, ParkingSite } from "@/store/useSiteStore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/apiClient"
-import { PrinterModal } from "./PrinterModal"
+import { PrinterModal } from "../administration/PrinterModal"
 
 const ACCENT_COLORS = [
     { label: "Sky Blue",    value: "#04a9f5" },
