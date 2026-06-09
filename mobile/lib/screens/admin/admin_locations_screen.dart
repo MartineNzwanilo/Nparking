@@ -403,13 +403,15 @@ class AdminLocationsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                ),
               ),
             ),
-          );
-          },
+          ),
         );
       },
     );
+  },
+);
   }
 
   void _confirmDeleteSite(BuildContext context, Map<String, dynamic> site) {
@@ -512,10 +514,11 @@ class AdminLocationsScreen extends StatelessWidget {
                 ),
               ],
             ),
-          );
-          },
+          ),
         );
       },
     );
+  },
+);
   }
 }
