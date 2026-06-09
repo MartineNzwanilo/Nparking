@@ -143,81 +143,137 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
       selectedSiteId = adminProvider.sites.first['id'];
     }
 
+    bool? overrideSms;
+    bool? overrideEmail;
+    bool? overridePrint;
+    bool initSms = auth.autoSendSms;
+    bool initEmail = auth.autoSendEmail;
+    bool initPrint = auth.autoPrint;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Check In Vehicle?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Are you sure you want to check in vehicle ${vehicle['plateNumber']} as $catName for TZS $amount?'),
-              if (hasGlobalAccess && adminProvider.sites.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text('Select Parking Site:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary(context))),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: selectedSiteId,
-                  isExpanded: true,
-                  dropdownColor: Theme.of(context).cardColor,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        builder: (dialogCtx, setStateDialog) {
+          Widget _toggleChip(IconData icon, String label, bool isActive, Function(bool) onChanged) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return GestureDetector(
+              onTap: () => onChanged(!isActive),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? AppTheme.primary : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 14, color: isActive ? Colors.white : (isDark ? Colors.white54 : Colors.black54)),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: isActive ? Colors.white : (isDark ? Colors.white54 : Colors.black54),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return AlertDialog(
+            title: const Text('Check In Vehicle?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Are you sure you want to check in vehicle ${vehicle['plateNumber']} as $catName for TZS $amount?'),
+                if (hasGlobalAccess && adminProvider.sites.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('Select Parking Site:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary(context))),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: selectedSiteId,
+                    isExpanded: true,
+                    dropdownColor: Theme.of(context).cardColor,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: adminProvider.sites.map((s) => DropdownMenuItem<String>(
+                      value: s['id'],
+                      child: Text(s['name'] ?? 'Unknown Site'),
+                    )).toList(),
+                    onChanged: (val) {
+                      setStateDialog(() => selectedSiteId = val);
+                    },
                   ),
-                  items: adminProvider.sites.map((s) => DropdownMenuItem<String>(
-                    value: s['id'],
-                    child: Text(s['name'] ?? 'Unknown Site'),
-                  )).toList(),
-                  onChanged: (val) {
-                    setStateDialog(() => selectedSiteId = val);
-                  },
+                ],
+                const SizedBox(height: 16),
+                const Text('NOTIFICATIONS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _toggleChip(LucideIcons.messageSquare, 'SMS', overrideSms ?? initSms, (val) => setStateDialog(() => overrideSms = val)),
+                    _toggleChip(LucideIcons.mail, 'EMAIL', overrideEmail ?? initEmail, (val) => setStateDialog(() => overrideEmail = val)),
+                    _toggleChip(LucideIcons.printer, 'PRINT', overridePrint ?? initPrint, (val) => setStateDialog(() => overridePrint = val)),
+                  ],
                 ),
               ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('CANCEL'),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  final session = await provider.checkInVehicle(
-                    vehicle['plateNumber'], 
-                    catName, 
-                    amount, 
-                    driverName: vehicle['ownerName'],
-                    siteId: selectedSiteId,
-                  );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Vehicle ${vehicle['plateNumber']} checked in successfully.'), backgroundColor: AppTheme.success),
-                  );
-                  
-                  // Trigger print popup selector immediately after successful check-in
-                  PrintingService.printTicket(context, session).catchError((e) {
-                    debugPrint('Print ticket failed: $e');
-                  });
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to check in vehicle.')),
-                  );
-                }
-              }
-            },
-            child: const Text('CHECK IN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('CANCEL'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    final session = await provider.checkInVehicle(
+                      vehicle['plateNumber'], 
+                      catName, 
+                      amount, 
+                      driverName: vehicle['ownerName'],
+                      siteId: selectedSiteId,
+                      autoSendSms: overrideSms ?? initSms,
+                      autoSendEmail: overrideEmail ?? initEmail,
+                    );
+                    
+                    if (session['vehicle'] == null) {
+                      session['vehicle'] = vehicle;
+                    }
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Vehicle ${vehicle['plateNumber']} checked in successfully.'), backgroundColor: AppTheme.success),
+                      );
+                      
+                      if (overridePrint ?? initPrint) {
+                        PrintingService.printTicket(context, session).catchError((e) {
+                          debugPrint('Print ticket failed: $e');
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Failed to check in vehicle.')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('CHECK IN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _openScanner() async {
     final status = await Permission.camera.request();

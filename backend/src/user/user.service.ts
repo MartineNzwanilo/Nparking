@@ -133,12 +133,12 @@ export class UserService {
     if (data.password) {
       await this.notificationService.sendWhatsapp(
         updatedUser.phone,
-        `Hello ${updatedUser.name}, your Locomotors Parking account password has been updated. Your new password is: ${data.password}`
+        `Hello ${updatedUser.name}, your NGEWA PARKING SYSTEM(NPS) account password has been updated. Your new password is: ${data.password}`
       );
       
       await this.notificationService.sendSms(
         updatedUser.phone,
-        `Locomotors Parking: Hello ${updatedUser.name}, your password has been updated to: ${data.password}`
+        `NGEWA PARKING SYSTEM(NPS): Hello ${updatedUser.name}, your password has been updated to: ${data.password}`
       );
     }
 

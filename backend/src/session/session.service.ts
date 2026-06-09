@@ -283,8 +283,8 @@ export class SessionService {
       </p>
     </div>
     <div class="footer">
-      This is an automated parking receipt from Locomotors Nparking.<br>
-      © 2026 Locomotors Group. All rights reserved.
+      This is an automated parking receipt from NGEWA PARKING SYSTEM(NPS).<br>
+      © 2026 NGEWA PARKING SYSTEM(NPS). All rights reserved.
     </div>
   </div>
 </body>
@@ -293,7 +293,7 @@ export class SessionService {
 
           const emailResult = await this.notificationService.sendEmail(
             recipientEmail,
-            `Locomotors Parking Entry Ticket - ${session.vehicle.plateNumber}`,
+            `NGEWA PARKING SYSTEM(NPS) Entry Ticket - ${session.vehicle.plateNumber}`,
             html,
           );
 
@@ -419,6 +419,7 @@ export class SessionService {
           include: { category: true },
         },
         payment: true,
+        watchman: { select: { name: true } },
       },
     });
 
@@ -434,6 +435,7 @@ export class SessionService {
           include: { category: true },
         },
         payment: true,
+        watchman: { select: { name: true } },
       },
     });
     if (!session) {
@@ -513,6 +515,7 @@ export class SessionService {
           include: { category: true },
         },
         payment: true,
+        watchman: { select: { name: true } },
       },
     });
 

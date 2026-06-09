@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_service.dart';
@@ -28,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
   bool _autoSendEmail = false;
   bool _autoSendSms = false;
   String? _avatarUrl;
+  List<dynamic> _sitePrinters = [];
 
   bool get isLoading => _isLoading;
   bool get ready => _ready;
@@ -42,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
   bool get autoSendSms => _autoSendSms;
   String? get avatarUrl => _avatarUrl;
   bool get isAdmin => _role == 'ADMIN';
+  List<dynamic> get sitePrinters => _sitePrinters;
 
   AuthProvider() {
     ApiService.onUnauthorized = () => logout(remote: false);
@@ -60,6 +63,12 @@ class AuthProvider extends ChangeNotifier {
     _autoSendEmail = prefs.getBool(_userAutoSendEmailKey) ?? false;
     _autoSendSms = prefs.getBool(_userAutoSendSmsKey) ?? false;
     _avatarUrl = prefs.getString(_userAvatarUrlKey);
+    final printersStr = prefs.getString('auth_offline_site_printers');
+    if (printersStr != null) {
+      try {
+        _sitePrinters = jsonDecode(printersStr) as List<dynamic>;
+      } catch (_) {}
+    }
     ApiService.setAuthToken(_token);
     _ready = true;
     notifyListeners();
@@ -93,6 +102,9 @@ class AuthProvider extends ChangeNotifier {
       _autoSendEmail = user['autoSendEmail'] as bool? ?? false;
       _autoSendSms = user['autoSendSms'] as bool? ?? false;
       _avatarUrl = user['avatarUrl']?.toString();
+      if (user['site'] != null && user['site']['printers'] != null) {
+        _sitePrinters = user['site']['printers'] as List<dynamic>;
+      }
       ApiService.setAuthToken(_token);
 
       final prefs = await SharedPreferences.getInstance();
@@ -116,6 +128,7 @@ class AuthProvider extends ChangeNotifier {
       if (_phone != null) await prefs.setString('auth_offline_user_phone', _phone!);
       if (_role != null) await prefs.setString('auth_offline_user_role', _role!);
       if (_siteId != null) await prefs.setString('auth_offline_user_site_id', _siteId!);
+      await prefs.setString('auth_offline_site_printers', jsonEncode(_sitePrinters));
     } catch (e) {
       if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup') || e.toString().contains('TimeoutException')) {
         final prefs = await SharedPreferences.getInstance();
@@ -129,6 +142,10 @@ class AuthProvider extends ChangeNotifier {
           _phone = prefs.getString('auth_offline_user_phone');
           _role = prefs.getString('auth_offline_user_role');
           _siteId = prefs.getString('auth_offline_user_site_id');
+          final pStr = prefs.getString('auth_offline_site_printers');
+          if (pStr != null) {
+            try { _sitePrinters = jsonDecode(pStr); } catch (_) {}
+          }
           ApiService.setAuthToken(_token);
           
           await prefs.setString(_tokenKey, _token!);

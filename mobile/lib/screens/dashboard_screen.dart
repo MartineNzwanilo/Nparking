@@ -59,7 +59,7 @@ class DashboardScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _greeting(),
+                                  _greeting(context),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -114,34 +114,7 @@ class DashboardScreen extends StatelessWidget {
 
                       const SizedBox(height: 20),
 
-                      // ── Secondary shortcuts ───────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SecondaryBtn(
-                              icon: LucideIcons.car,
-                              label: context.t.tr('vehicles'),
-                              isDark: isDark,
-                              onTap: () => context
-                                  .read<ShellNavigationProvider>()
-                                  .setIndex(1, maxIndex: 4),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _SecondaryBtn(
-                              icon: LucideIcons.activity,
-                              label: context.t.tr('activity'),
-                              isDark: isDark,
-                              onTap: () => context
-                                  .read<ShellNavigationProvider>()
-                                  .setIndex(3, maxIndex: 4),
-                            ),
-                          ),
-                        ],
-                      ),
 
-                      const SizedBox(height: 20),
 
                       // ── Last 3 activity entries (no header, no "view all") ──
                       if (activities.isNotEmpty) ...[
@@ -188,11 +161,11 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  String _greeting() {
+  String _greeting(BuildContext context) {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (h < 12) return context.t.tr('goodMorningOnly');
+    if (h < 17) return context.t.tr('goodAfternoonOnly');
+    return context.t.tr('goodEveningOnly');
   }
 
   static List<Map<String, dynamic>> _toVehicleMaps(List<dynamic> vehicles) {
@@ -273,7 +246,7 @@ class _BlacklistBannerState extends State<_BlacklistBanner>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '⚠ BLACKLISTED: $plate',
+                  context.t.tr('blacklistedPrefix', {'plate': plate}),
                   style: const TextStyle(
                     color: AppTheme.error,
                     fontWeight: FontWeight.w800,
@@ -406,7 +379,7 @@ class _HeroCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Occupancy',
+                          context.t.tr('occupancy'),
                           style: TextStyle(
                             fontSize: 10,
                             color: isDark ? Colors.white.withValues(alpha: 0.4) : AppTheme.textSecondary(context),
@@ -703,7 +676,7 @@ class _ActivityRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isIn ? 'IN' : 'OUT',
+                  isIn ? context.t.tr('inStatus') : context.t.tr('outStatus'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,

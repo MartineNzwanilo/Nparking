@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme.dart';
 import '../services/printer_discovery_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/admin_provider.dart';
+import '../core/api_service.dart';
 
 class NetworkPrinter {
   String id;
@@ -57,90 +61,116 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   }
 
   Future<void> _loadSavedPrinters() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Migrate old single IP if it exists
-    final oldIp = prefs.getString('network_printer_ip');
-    if (oldIp != null) {
-      final newPrinter = NetworkPrinter(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: 'Main Gate Printer',
-        ip: oldIp,
-        isDefault: true,
-      );
-      _savedPrinters.add(newPrinter);
-      await prefs.remove('network_printer_ip');
-      await _persistPrinters();
-    } else {
-      final jsonStr = prefs.getString('network_printers_list');
-      if (jsonStr != null) {
-        final List<dynamic> decoded = jsonDecode(jsonStr);
+    final auth = context.read<AuthProvider>();
+    if (auth.isAdmin) {
+      try {
+        final api = ApiService();
+        final printers = await api.get('/printer') as List<dynamic>;
         setState(() {
-          _savedPrinters = decoded.map((e) => NetworkPrinter.fromJson(e)).toList();
+          _savedPrinters = printers.map((e) => NetworkPrinter.fromJson(e)).toList();
         });
+        
+        // Also fetch sites for the dropdown if admin
+        if (mounted) {
+          context.read<AdminProvider>().fetchSites();
+        }
+      } catch (e) {
+        print('Error fetching printers: $e');
+      }
+    } else {
+      setState(() {
+        _savedPrinters = auth.sitePrinters.map((e) => NetworkPrinter.fromJson(e)).toList();
+      });
+    }
+  }
+
+  Future<void> _addPrinter(String ip, String name, String siteId) async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin) return;
+    
+    try {
+      final api = ApiService();
+      await api.post('/printer', {
+        'name': name.isEmpty ? 'Printer $ip' : name,
+        'ip': ip,
+        'siteId': siteId,
+        'isDefault': _savedPrinters.isEmpty,
+      });
+      await _loadSavedPrinters();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Printer $name added successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add printer: $e')),
+        );
       }
     }
   }
 
-  Future<void> _persistPrinters() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = jsonEncode(_savedPrinters.map((p) => p.toJson()).toList());
-    await prefs.setString('network_printers_list', jsonStr);
-    setState(() {});
-  }
-
-  Future<void> _addPrinter(String ip, String name) async {
-    final isFirst = _savedPrinters.isEmpty;
-    final printer = NetworkPrinter(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name.isEmpty ? 'Printer $ip' : name,
-      ip: ip,
-      isDefault: isFirst, // First printer is default
-    );
-    _savedPrinters.add(printer);
-    await _persistPrinters();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Printer $name added successfully!')),
-      );
-    }
-  }
-
   Future<void> _updatePrinter(String id, String name, String ip) async {
-    final index = _savedPrinters.indexWhere((p) => p.id == id);
-    if (index != -1) {
-      _savedPrinters[index].name = name.isEmpty ? 'Printer $ip' : name;
-      _savedPrinters[index].ip = ip;
-      await _persistPrinters();
-      
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin) return;
+
+    try {
+      final api = ApiService();
+      await api.patch('/printer/$id', {
+        'name': name.isEmpty ? 'Printer $ip' : name,
+        'ip': ip,
+      });
+      await _loadSavedPrinters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Printer updated successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update printer: $e')),
         );
       }
     }
   }
 
   Future<void> _removePrinter(String id) async {
-    _savedPrinters.removeWhere((p) => p.id == id);
-    if (_savedPrinters.isNotEmpty && !_savedPrinters.any((p) => p.isDefault)) {
-      _savedPrinters.first.isDefault = true;
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin) return;
+
+    try {
+      final api = ApiService();
+      await api.delete('/printer/$id');
+      await _loadSavedPrinters();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete printer: $e')),
+        );
+      }
     }
-    await _persistPrinters();
   }
 
   Future<void> _setDefaultPrinter(String id) async {
-    for (var p in _savedPrinters) {
-      p.isDefault = (p.id == id);
-    }
-    await _persistPrinters();
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin) return;
+    try {
+      final api = ApiService();
+      await api.patch('/printer/$id', {'isDefault': true});
+      await _loadSavedPrinters();
+    } catch (e) {}
   }
 
   Future<void> _toggleSimultaneous(String id, bool value) async {
-    final p = _savedPrinters.firstWhere((p) => p.id == id);
-    p.printSimultaneously = value;
-    await _persistPrinters();
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin) return;
+    try {
+      final api = ApiService();
+      await api.patch('/printer/$id', {'printSimultaneously': value});
+      await _loadSavedPrinters();
+    } catch (e) {}
   }
 
   Future<void> _scanNetwork() async {
@@ -167,32 +197,74 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
 
   void _showAddNameDialog(String ip) {
     final ctrl = TextEditingController();
+    String? selectedSiteId;
+    
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Name this Printer'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'e.g., Main Gate, Exit Gate',
-            border: OutlineInputBorder(),
+      builder: (ctx) {
+        final sites = context.read<AdminProvider>().sites;
+        if (sites.isNotEmpty && selectedSiteId == null) {
+          selectedSiteId = sites.first['id'];
+        }
+        
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            title: const Text('Name this Printer'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: ctrl,
+                  decoration: const InputDecoration(
+                    hintText: 'e.g., Main Gate, Exit Gate',
+                    border: OutlineInputBorder(),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                if (sites.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Assign to Site',
+                      border: OutlineInputBorder(),
+                    ),
+                    value: selectedSiteId,
+                    items: sites.map<DropdownMenuItem<String>>((site) {
+                      return DropdownMenuItem<String>(
+                        value: site['id'],
+                        child: Text(site['name']),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        selectedSiteId = val;
+                      });
+                    },
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (selectedSiteId == null && sites.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No sites available to assign printer.')),
+                    );
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  _addPrinter(ip, ctrl.text.trim(), selectedSiteId ?? context.read<AuthProvider>().siteId ?? '');
+                },
+                child: const Text('Add'),
+              ),
+            ],
           ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _addPrinter(ip, ctrl.text.trim());
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -268,13 +340,15 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
             children: [
               if (_savedPrinters.isNotEmpty) ...[
                 const Text(
-                  'Configured Printers',
+                  'Configured Printers (Assigned to Sites)',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 ..._savedPrinters.map((printer) => _buildPrinterCard(printer)),
                 const Divider(height: 32),
               ],
+              
+              if (context.read<AuthProvider>().isAdmin) ...[
   
               const Text(
                 'Discover Printers on Wi-Fi',
@@ -363,6 +437,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                 ),
               ],
             ],
+          ],
           ),
         ),
       ),
@@ -399,20 +474,23 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(LucideIcons.edit3, color: AppTheme.primary),
-                  onPressed: () => _showEditPrinterDialog(printer),
-                ),
-                IconButton(
-                  icon: const Icon(LucideIcons.trash2, color: AppTheme.error),
-                  onPressed: () => _removePrinter(printer.id),
-                ),
+                if (context.read<AuthProvider>().isAdmin)
+                  IconButton(
+                    icon: const Icon(LucideIcons.edit3, color: AppTheme.primary),
+                    onPressed: () => _showEditPrinterDialog(printer),
+                  ),
+                if (context.read<AuthProvider>().isAdmin)
+                  IconButton(
+                    icon: const Icon(LucideIcons.trash2, color: AppTheme.error),
+                    onPressed: () => _removePrinter(printer.id),
+                  ),
               ],
             ),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+            if (context.read<AuthProvider>().isAdmin) ...[
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                 Row(
                   children: [
                     Radio<String>(
@@ -434,6 +512,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                 ),
               ],
             ),
+            ]
           ],
         ),
       ),

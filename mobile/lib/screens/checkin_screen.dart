@@ -1051,6 +1051,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                             autoSendEmail: _shouldEmail(context),
                             autoSendSms: _shouldSms(context),
                             propertiesLeft: propString,
+                            watchmanName: context.read<AuthProvider>().name,
                           );
                           
                           if (mounted) {

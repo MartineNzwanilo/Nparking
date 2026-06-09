@@ -10,6 +10,7 @@ import { useSiteStore, ParkingSite, defaultParkingSites } from "@/store/useSiteS
 import { apiClient } from "@/lib/apiClient"
 import { toast } from "sonner"
 import { SiteModal } from "./SiteModal"
+import { PrinterModal } from "./PrinterModal"
 
 export default function AdministrationPage() {
   const { setBreadcrumbs } = useBreadcrumbStore()
@@ -18,6 +19,9 @@ export default function AdministrationPage() {
   
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSite, setEditingSite] = useState<ParkingSite | null>(null)
+
+  const [printerModalOpen, setPrinterModalOpen] = useState(false)
+  const [editingPrinter, setEditingPrinter] = useState<any>(null)
 
   useEffect(() => {
     setBreadcrumbs([
@@ -31,6 +35,14 @@ export default function AdministrationPage() {
     queryKey: ["parking-sites"],
     queryFn: async () => {
       const res = await apiClient.get("/api/sites")
+      return res.data
+    }
+  })
+
+  const { data: printers, isLoading: isPrintersLoading } = useQuery({
+    queryKey: ["printers"],
+    queryFn: async () => {
+      const res = await apiClient.get("/api/printer")
       return res.data
     }
   })
@@ -104,9 +116,45 @@ export default function AdministrationPage() {
     }
   }
 
+  const deletePrinterMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/printer/${id}`)
+    },
+    onSuccess: () => {
+      toast.success("Printer deleted successfully")
+      queryClient.invalidateQueries({ queryKey: ["printers"] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to delete printer")
+    }
+  })
+
+  const handleAddPrinter = () => {
+    setEditingPrinter(null)
+    setPrinterModalOpen(true)
+  }
+
+  const handleEditPrinter = (printer: any) => {
+    setEditingPrinter(printer)
+    setPrinterModalOpen(true)
+  }
+
+  const handleDeletePrinter = (id: string) => {
+    if (confirm("Are you sure you want to delete this printer?")) {
+      deletePrinterMutation.mutate(id)
+    }
+  }
+
   return (
     <div className="w-full h-full flex flex-col gap-6 pb-20">
-      <div className="w-full flex justify-end">
+      <div className="w-full flex justify-end gap-4">
+        <button 
+          onClick={handleAddPrinter}
+          className="h-10 px-8 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white shadow-xl shadow-blue-500/20 transition-all active:scale-95"
+        >
+          <Icons8 icon="plus" className="w-4 h-4 invert" />
+          Add Printer
+        </button>
         <button 
           onClick={handleAdd}
           className="h-10 px-8 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/20 transition-all active:scale-95"
@@ -208,12 +256,87 @@ export default function AdministrationPage() {
             )}
         </motion.div>
 
+        {/* PRINTERS SECTION */}
+        <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-6 mt-8"
+        >
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-[18px] font-black uppercase tracking-widest text-foreground">Hardware & Printers</h3>
+                    <p className="text-[12px] font-bold text-muted-foreground mt-1">Manage ESC/POS receipt printers across facilities.</p>
+                </div>
+            </div>
+
+            {isPrintersLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1,2].map(i => (
+                  <div key={i} className="h-[140px] bg-secondary/50 rounded-3xl animate-pulse" />
+                ))}
+              </div>
+            ) : !printers || printers.length === 0 ? (
+              <div className="p-12 text-center border border-border border-dashed rounded-3xl">
+                <Icons8 icon="printer" className="w-12 h-12 text-muted-foreground opacity-50 mx-auto" />
+                <p className="text-[13px] font-bold text-muted-foreground mt-3">No printers configured yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {printers.map((printer: any) => (
+                      <div key={printer.id} className="bg-card border border-border shadow-sm rounded-3xl p-6 transition-all group flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-blue-500/10 text-blue-500">
+                                        <Icons8 icon="printer" className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[14px] font-black uppercase tracking-widest text-foreground line-clamp-1">{printer.name}</h4>
+                                        <p className="text-[11px] font-bold text-muted-foreground line-clamp-1">{printer.ip}</p>
+                                    </div>
+                                </div>
+                                {printer.isDefault && (
+                                  <div className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shrink-0 ml-2 bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                      Default
+                                  </div>
+                                )}
+                            </div>
+                            
+                            <div className="flex items-start justify-between mt-4">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assigned Facility</p>
+                                    <p className="text-[13px] font-black text-foreground mt-0.5">{printer.site?.name || "Unknown"}</p>
+                                </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-end gap-3 mt-4 opacity-0 group-hover:opacity-100 transition-opacity pt-4 border-t border-border/50">
+                            <button onClick={() => handleEditPrinter(printer)} className="w-8 h-8 rounded-full bg-secondary text-primary hover:bg-primary hover:text-white flex items-center justify-center transition-colors">
+                              <Icons8 icon="edit" className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDeletePrinter(printer.id)} disabled={deletePrinterMutation.isPending} className="w-8 h-8 rounded-full bg-secondary text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-colors disabled:opacity-50">
+                              <Icons8 icon="trash" className="w-4 h-4" />
+                            </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+            )}
+        </motion.div>
+
       </div>
 
       <SiteModal 
         isOpen={modalOpen} 
         onClose={() => setModalOpen(false)} 
         site={editingSite} 
+      />
+
+      <PrinterModal
+        isOpen={printerModalOpen}
+        onClose={() => setPrinterModalOpen(false)}
+        printer={editingPrinter}
+        sites={parkingSites}
       />
     </div>
   )

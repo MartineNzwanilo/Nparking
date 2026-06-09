@@ -1057,7 +1057,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               label: Text(
                 status == 'All' ? context.t.tr('all') : (
                     status == 'Inside' ? context.t.tr('inside') : 
-                    status == 'Overstayed' ? 'Overstayed' : context.t.tr('absent')
+                    status == 'Overstayed' ? context.t.tr('overstayed') : context.t.tr('absent')
                 ),
                 style: TextStyle(
                   color: isSelected 
@@ -1232,9 +1232,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(color: AppTheme.error.withOpacity(0.5), width: 1),
                                   ),
-                                  child: const Text(
-                                    'OVERSTAYED',
-                                    style: TextStyle(
+                                  child: Text(
+                                    context.t.tr('overstayed').toUpperCase(),
+                                    style: const TextStyle(
                                       fontSize: 8.5,
                                       fontWeight: FontWeight.bold,
                                       color: AppTheme.error,
@@ -1302,9 +1302,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () => _showVehiclePreview(context, vehicle),
-                      child: const Text(
-                        "Maelezo", 
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      child: Text(
+                        context.t.tr('detailsLabel'), 
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                     ),
                   ),
@@ -1736,7 +1736,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _buildDetailPhotoSlot(BuildContext context, String label, String? imagePath) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
+    
+    Widget content = Container(
       height: 90,
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.02),
@@ -1789,6 +1790,43 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 ),
               ],
             ),
+    );
+
+    return GestureDetector(
+      onTap: () {
+        if (imagePath != null && imagePath.isNotEmpty) {
+          showDialog(
+            context: context,
+            builder: (_) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(16),
+              child: Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  InteractiveViewer(
+                    panEnabled: true,
+                    minScale: 0.5,
+                    maxScale: 4,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: imagePath.startsWith('assets/')
+                          ? Image.asset(imagePath)
+                          : (imagePath.startsWith('/uploads') || imagePath.startsWith('http')
+                              ? Image.network(imagePath.startsWith('/uploads') ? '${ApiConstants.baseUrl}$imagePath' : imagePath)
+                              : Image.file(File(imagePath))),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, shadows: [Shadow(blurRadius: 10, color: Colors.black)]),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      },
+      child: content,
     );
   }
 }

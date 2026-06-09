@@ -1,9 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as net from 'net';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PrinterService {
   private readonly logger = new Logger(PrinterService.name);
+
+  constructor(private prisma: PrismaService) {}
 
   async printToIp(ip: string, port: number, data: string | Buffer): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
@@ -54,5 +57,65 @@ export class PrinterService {
         });
       });
     });
+  }
+
+  async getPrinters(siteId?: string) {
+    if (siteId) {
+      return this.prisma.printer.findMany({ where: { siteId }, orderBy: { createdAt: 'asc' } });
+    }
+    return this.prisma.printer.findMany({ orderBy: { createdAt: 'asc' } });
+  }
+
+  async createPrinter(data: { name: string; ip: string; siteId: string; isDefault?: boolean; printSimultaneously?: boolean }) {
+    if (data.isDefault) {
+      await this.prisma.printer.updateMany({
+        where: { siteId: data.siteId },
+        data: { isDefault: false },
+      });
+    }
+    return this.prisma.printer.create({
+      data: {
+        name: data.name,
+        ip: data.ip,
+        siteId: data.siteId,
+        isDefault: data.isDefault ?? false,
+        printSimultaneously: data.printSimultaneously ?? true,
+      },
+    });
+  }
+
+  async updatePrinter(id: string, data: { name?: string; ip?: string; isDefault?: boolean; printSimultaneously?: boolean }) {
+    const printer = await this.prisma.printer.findUnique({ where: { id } });
+    if (!printer) throw new NotFoundException('Printer not found');
+
+    if (data.isDefault) {
+      await this.prisma.printer.updateMany({
+        where: { siteId: printer.siteId, id: { not: id } },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.printer.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deletePrinter(id: string) {
+    const printer = await this.prisma.printer.findUnique({ where: { id } });
+    if (!printer) throw new NotFoundException('Printer not found');
+    
+    await this.prisma.printer.delete({ where: { id } });
+    
+    if (printer.isDefault) {
+      const remaining = await this.prisma.printer.findFirst({ where: { siteId: printer.siteId } });
+      if (remaining) {
+        await this.prisma.printer.update({
+          where: { id: remaining.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+    return { success: true };
   }
 }

@@ -55,8 +55,8 @@ class PrintingService {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Try to load new multiple network printers list
-      final String? printersJson = prefs.getString('network_printers_list');
+      // Try to load new multiple network printers list inherited from backend
+      final String? printersJson = prefs.getString('auth_offline_site_printers');
       List<dynamic> networkPrinters = [];
       if (printersJson != null) {
         networkPrinters = jsonDecode(printersJson);

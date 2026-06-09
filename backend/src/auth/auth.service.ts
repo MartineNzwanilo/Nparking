@@ -68,7 +68,7 @@ export class AuthService {
           { email: identifier }
         ]
       },
-      include: { site: true },
+      include: { site: { include: { printers: true } } },
     });
 
     if (!user) {
@@ -115,6 +115,7 @@ export class AuthService {
         autoSendEmail: user.autoSendEmail,
         autoSendSms: user.autoSendSms,
         avatarUrl: user.avatarUrl,
+        site: user.site,
       },
     };
   }
@@ -133,6 +134,11 @@ export class AuthService {
         autoSendEmail: true,
         autoSendSms: true,
         avatarUrl: true,
+        site: {
+          include: {
+            printers: true,
+          },
+        },
       },
     });
     if (!user) throw new UnauthorizedException('User not found');

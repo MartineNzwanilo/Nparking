@@ -44,7 +44,7 @@ export async function exportPDF(
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('LOCOMOTORS PARKING', 14, 10);
+  doc.text('NGEWA PARKING SYSTEM(NPS)', 14, 10);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');

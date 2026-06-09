@@ -1,5 +1,5 @@
-c"""
-main.py — Locomotors AI Detection Service
+"""
+main.py — NGEWA PARKING SYSTEM(NPS) AI Detection Service
 FastAPI + WebSocket server for vehicle & plate detection.
 Run with: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 """
@@ -61,14 +61,14 @@ def on_detection_event(event: dict):
 async def lifespan(app: FastAPI):
     global main_loop
     main_loop = asyncio.get_running_loop()
-    logger.info("🚗 Locomotors AI Service starting up...")
+    logger.info("🚗 NGEWA PARKING SYSTEM(NPS) AI Service starting up...")
     yield
     logger.info("Shutting down — stopping all streams...")
     for stream in streams.values():
         stream.stop()
 
 
-app = FastAPI(title="Locomotors AI Detection Service", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="NGEWA PARKING SYSTEM(NPS) AI Detection Service", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,7 +88,7 @@ class StartStreamRequest(BaseModel):
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
-    return {"service": "Locomotors AI Detection", "status": "running",
+    return {"service": "NGEWA PARKING SYSTEM(NPS) AI Detection", "status": "running",
             "active_streams": len(streams)}
 
 
@@ -143,7 +143,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Send welcome + current stream status
         await websocket.send_json({
             "type": "connected",
-            "message": "Locomotors AI Service connected",
+            "message": "NGEWA PARKING SYSTEM(NPS) AI Service connected",
             "active_streams": len(streams)
         })
         # Keep connection alive — listen for client messages (e.g. ping)

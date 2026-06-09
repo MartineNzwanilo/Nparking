@@ -64,15 +64,15 @@ class VehicleProvider extends ChangeNotifier {
     try {
       String? finalFront = frontImage;
       if (finalFront != null && finalFront.isNotEmpty && !finalFront.startsWith('http')) {
-        finalFront = await _apiService.uploadImage(finalFront);
+        try { finalFront = await _apiService.uploadImage(finalFront); } catch (e) { print('Front img upload err: $e'); }
       }
       String? finalPlate = plateImage;
       if (finalPlate != null && finalPlate.isNotEmpty && !finalPlate.startsWith('http')) {
-        finalPlate = await _apiService.uploadImage(finalPlate);
+        try { finalPlate = await _apiService.uploadImage(finalPlate); } catch (e) { print('Plate img upload err: $e'); }
       }
       String? finalSide = sideImage;
       if (finalSide != null && finalSide.isNotEmpty && !finalSide.startsWith('http')) {
-        finalSide = await _apiService.uploadImage(finalSide);
+        try { finalSide = await _apiService.uploadImage(finalSide); } catch (e) { print('Side img upload err: $e'); }
       }
 
       final payload = {
@@ -144,15 +144,15 @@ class VehicleProvider extends ChangeNotifier {
     try {
       String? finalFront = frontImage;
       if (finalFront != null && finalFront.isNotEmpty && !finalFront.startsWith('http')) {
-        finalFront = await _apiService.uploadImage(finalFront);
+        try { finalFront = await _apiService.uploadImage(finalFront); } catch (e) { print('Front img upload err: $e'); }
       }
       String? finalPlate = plateImage;
       if (finalPlate != null && finalPlate.isNotEmpty && !finalPlate.startsWith('http')) {
-        finalPlate = await _apiService.uploadImage(finalPlate);
+        try { finalPlate = await _apiService.uploadImage(finalPlate); } catch (e) { print('Plate img upload err: $e'); }
       }
       String? finalSide = sideImage;
       if (finalSide != null && finalSide.isNotEmpty && !finalSide.startsWith('http')) {
-        finalSide = await _apiService.uploadImage(finalSide);
+        try { finalSide = await _apiService.uploadImage(finalSide); } catch (e) { print('Side img upload err: $e'); }
       }
 
       final payload = {
@@ -235,6 +235,7 @@ class VehicleProvider extends ChangeNotifier {
     bool? autoSendSms,
     String? propertiesLeft,
     String? siteId,
+    String? watchmanName,
   }) async {
     try {
       final payload = {
@@ -290,6 +291,7 @@ class VehicleProvider extends ChangeNotifier {
           'propertiesLeft': propertiesLeft,
           'status': 'INSIDE',
           'checkIn': DateTime.now().toIso8601String(),
+          'watchman': watchmanName != null ? {'name': watchmanName} : null,
         };
         
         final index = _vehicles.indexWhere((v) => v['plateNumber'] == plateNumber);

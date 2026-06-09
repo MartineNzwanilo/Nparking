@@ -21,6 +21,7 @@ model ParkingSite {
   users       User[]
   sessions    ParkingSession[]
   cameras     Camera[]
+  printers    Printer[]
 }
 
 model User {
@@ -177,4 +178,16 @@ model Expense {
   date          DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Printer {
+  id                  String   @id @default(uuid())
+  name                String
+  ip                  String
+  isDefault           Boolean  @default(false)
+  printSimultaneously Boolean  @default(true)
+  siteId              String
+  site                ParkingSite @relation(fields: [siteId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }

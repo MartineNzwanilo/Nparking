@@ -41,7 +41,7 @@ export class NotificationService {
       const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
 
       await transporter.sendMail({
-        from: `"Locomotors Parking" <${settings?.smtpUser || 'noreply@locomotors.com'}>`,
+        from: `"NGEWA PARKING SYSTEM(NPS)" <${settings?.smtpUser || 'noreply@ngewa.com'}>`,
         to,
         subject,
         html,

@@ -232,9 +232,14 @@ class CheckoutHelper {
            : 'Vehicle $plate checked out successfully' + (extraFine != null ? ' with Fine.' : '.'),
         title: 'Checkout Success',
       );
-    } catch (_) {
+    } catch (e) {
       Navigator.pop(context);
-      GlobalPopup.showError(context, 'Failed to complete checkout. Please try again.');
+      String errorMsg = e.toString().toLowerCase();
+      if (errorMsg.contains('403') || errorMsg.contains('forbidden')) {
+        GlobalPopup.showError(context, 'You can only check out sessions created by you.');
+      } else {
+        GlobalPopup.showError(context, 'Failed to complete checkout. Please try again.');
+      }
     }
   }
 
@@ -393,9 +398,14 @@ class CheckoutHelper {
                                 'Vehicle $plate checked out successfully.',
                                 title: 'Checkout Success',
                               );
-                            } catch (_) {
+                            } catch (e) {
                               Navigator.pop(context);
-                              GlobalPopup.showError(context, 'Failed to complete checkout. Please try again.');
+                              String errorMsg = e.toString().toLowerCase();
+                              if (errorMsg.contains('403') || errorMsg.contains('forbidden')) {
+                                GlobalPopup.showError(context, 'You can only check out sessions created by you.');
+                              } else {
+                                GlobalPopup.showError(context, 'Failed to complete checkout. Please try again.');
+                              }
                             }
                           },
                           child: const Text('Check Out', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
