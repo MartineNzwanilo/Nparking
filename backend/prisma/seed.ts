@@ -23,6 +23,33 @@ async function main() {
   } else {
     console.log('Admin user already exists');
   }
+
+  // Ensure Support Admin exists or is updated
+  const supportPhone = '0745633638';
+  const supportAdmin = await prisma.user.findUnique({
+    where: { phone: supportPhone },
+  });
+
+  const hashedSupportPassword = await bcrypt.hash('123qwe', 10);
+  
+  if (supportAdmin) {
+    await prisma.user.update({
+      where: { id: supportAdmin.id },
+      data: { password: hashedSupportPassword, role: 'ADMIN', name: 'Support Admin', siteId: null },
+    });
+    console.log('Support Admin updated to ADMIN role and global site!');
+  } else {
+    await prisma.user.create({
+      data: {
+        phone: supportPhone,
+        name: 'Support Admin',
+        password: hashedSupportPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+    });
+    console.log('Support Admin created!');
+  }
 }
 
 main()
