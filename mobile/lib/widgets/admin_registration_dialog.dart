@@ -39,7 +39,7 @@ class _AdminRegistrationDialogContent extends StatefulWidget {
 }
 
 class _AdminRegistrationDialogContentState extends State<_AdminRegistrationDialogContent> {
-  String _selectedCategory = 'Sedan/SUV';
+  String? _selectedCategory;
   String? _frontImagePath;
   String? _plateImagePath;
   String? _sideImagePath;
@@ -262,13 +262,26 @@ class _AdminRegistrationDialogContentState extends State<_AdminRegistrationDialo
                           Consumer<VehicleProvider>(
                             builder: (context, provider, child) {
                               final categories = provider.categories.map((c) => (c['name'] ?? '').toString()).where((name) => name.isNotEmpty).toList();
-                              if (categories.isEmpty) categories.addAll(['Sedan/SUV', 'Bodaboda', 'Bajaji', 'Daladala', 'Lorry']);
-                              if (!categories.contains(_selectedCategory)) categories.insert(0, _selectedCategory);
+                              
+                              String? dropdownValue = _selectedCategory;
+                              if (dropdownValue != null && !categories.contains(dropdownValue)) {
+                                dropdownValue = null;
+                              }
+                              if (dropdownValue == null && categories.isNotEmpty) {
+                                dropdownValue = categories.first;
+                              }
+
+                              if (_selectedCategory == null && dropdownValue != null) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted) setState(() => _selectedCategory = dropdownValue);
+                                });
+                              }
+
                               return DropdownButtonFormField<String>(
                                 dropdownColor: Theme.of(context).cardColor,
                                 style: TextStyle(color: AppTheme.textPrimary(context)),
                                 isExpanded: true,
-                                value: categories.contains(_selectedCategory) ? _selectedCategory : categories.first,
+                                value: categories.isEmpty ? null : dropdownValue,
                                 decoration: InputDecoration(
                                   prefixIcon: Icon(LucideIcons.car, color: isDark ? Colors.white38 : Colors.black38),
                                   labelText: context.t.tr('selectVehicleCategory'),
@@ -337,7 +350,7 @@ class _AdminRegistrationDialogContentState extends State<_AdminRegistrationDialo
                         setState(() => _isLoading = true);
                         try {
                           await context.read<VehicleProvider>().registerVehicle(
-                            plate, _selectedCategory, owner,
+                            plate, _selectedCategory ?? '', owner,
                             phone: _phoneController.text.trim(),
                             email: _emailController.text.trim(),
                             company: _companyController.text.trim(),

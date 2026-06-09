@@ -142,9 +142,6 @@ class DashboardScreen extends StatelessWidget {
                             return _ActivityRow(
                               activity: activity,
                               isDark: isDark,
-                              onTap: () => context
-                                  .read<ShellNavigationProvider>()
-                                  .setIndex(3, maxIndex: 4),
                             );
                           },
                         ),
@@ -616,12 +613,12 @@ class _ActivityRow extends StatelessWidget {
   const _ActivityRow({
     required this.activity,
     required this.isDark,
-    required this.onTap,
+    this.onTap,
   });
 
   final Map<String, dynamic> activity;
   final bool isDark;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

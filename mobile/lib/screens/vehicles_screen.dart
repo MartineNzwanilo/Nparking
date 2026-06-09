@@ -74,26 +74,19 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final companyController = TextEditingController(text: editingVehicle?['company']);
     final colorController = TextEditingController(text: editingVehicle?['color']);
     final makeController = TextEditingController(text: editingVehicle?['makeModel']);
-    const createNewCategoryOption = '__create_new__';
-    
     final vehicleProvider = context.read<VehicleProvider>();
     List<String> categories = vehicleProvider.categories
         .map((cat) => (cat['name'] ?? '').toString())
         .where((name) => name.isNotEmpty)
         .toList();
 
-    if (categories.isEmpty) {
-      categories = ['Bodaboda', 'Bajaji', 'Sedan/SUV', 'Daladala', 'Lorry'];
-    }
-
-    String selectedCategory = editingVehicle?['category']?['name'] ?? 'Sedan/SUV';
-    if (!categories.contains(selectedCategory)) {
+    String? selectedCategory = editingVehicle?['category']?['name'];
+    if (selectedCategory != null && !categories.contains(selectedCategory)) {
       categories.insert(0, selectedCategory);
     }
-    if (!categories.contains('Sedan/SUV')) {
-      categories.add('Sedan/SUV');
+    if (selectedCategory == null && categories.isNotEmpty) {
+      selectedCategory = categories.first;
     }
-    categories.add(createNewCategoryOption);
 
     // Image capture states
     String? frontImagePath;
@@ -275,39 +268,22 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                               ),
                                             ),
                                           ),
-                                          value: selectedCategory,
+                                          value: categories.isEmpty ? null : selectedCategory,
                                           items: categories.map((c) => DropdownMenuItem(
                                             value: c, 
                                             child: Text(
-                                              c == createNewCategoryOption ? context.t.tr('createNewCategory') : c,
+                                              c,
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 1,
                                               style: TextStyle(
-                                                color: c == createNewCategoryOption
-                                                    ? AppTheme.primary
-                                                    : AppTheme.textPrimary(context),
-                                                fontWeight: c == createNewCategoryOption
-                                                    ? FontWeight.bold
-                                                    : FontWeight.normal,
+                                                color: AppTheme.textPrimary(context),
+                                                fontWeight: FontWeight.normal,
                                               ),
                                             ),
                                           )).toList(),
                                           onChanged: (val) {
-                                            if (val == createNewCategoryOption) {
-                                              _showCreateCategoryDialog(context, (newCat) {
-                                                if (newCat.isNotEmpty) {
-                                                  setState(() {
-                                                    categories.insert(categories.length - 1, newCat);
-                                                    selectedCategory = newCat;
-                                                  });
-                                                } else {
-                                                  setState(() {
-                                                    selectedCategory = 'Sedan/SUV';
-                                                  });
-                                                }
-                                              });
-                                            } else {
-                                              setState(() => selectedCategory = val!);
+                                            if (val != null) {
+                                              setState(() => selectedCategory = val);
                                             }
                                           },
                                         ),
@@ -475,7 +451,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                   if (editingVehicle != null) {
                                     await context.read<VehicleProvider>().updateVehicle(
                                           editingVehicle['id'],
-                                          categoryName: selectedCategory,
+                                          categoryName: selectedCategory ?? '',
                                           ownerName: ownerController.text.trim(),
                                           phone: phoneController.text.trim(),
                                           email: emailController.text.trim(),
@@ -497,7 +473,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                   } else {
                                     await context.read<VehicleProvider>().registerVehicle(
                                           plateController.text.trim().toUpperCase(),
-                                          selectedCategory,
+                                          selectedCategory ?? '',
                                           ownerController.text.trim(),
                                           phone: phoneController.text.trim(),
                                           email: emailController.text.trim(),
@@ -668,72 +644,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
-  void _showCreateCategoryDialog(BuildContext context, Function(String) onCreated) {
-    final catController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardTheme.color,
-          title: Text(
-            context.t.tr('createNewCategory'),
-            style: TextStyle(
-              color: AppTheme.textPrimary(context),
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: catController,
-              style: TextStyle(color: AppTheme.textPrimary(context)),
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: context.t.tr('exampleCategoryHint'),
-                hintStyle: TextStyle(color: AppTheme.textSecondary(context).withOpacity(0.5)),
-                filled: true,
-                fillColor: Theme.of(context).brightness == Brightness.dark 
-                    ? Colors.white.withOpacity(0.03) 
-                    : Colors.black.withOpacity(0.03),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return context.t.tr('categoryNameRequired');
-                }
-                return null;
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                onCreated('');
-              },
-              child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
-              onPressed: () {
-                if (!(formKey.currentState?.validate() ?? false)) {
-                  return;
-                }
-                Navigator.pop(ctx);
-                onCreated(catController.text.trim());
-              },
-              child: const Text(
-                'Create',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        );
-      }
-    );
-  }
+
 
   void _showColorPickerDialog(BuildContext context, Function(String) onColorSelected) {
     final List<Map<String, dynamic>> presetColors = [
@@ -1095,7 +1006,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Widget _buildTeslaFilterPills() {
-    final categories = ['All', 'Bodaboda', 'Bajaji', 'Sedan/SUV', 'Daladala', 'Lorry'];
+    final vehicleProvider = context.watch<VehicleProvider>();
+    final categories = ['All'] + vehicleProvider.categories
+        .map((cat) => (cat['name'] ?? '').toString())
+        .where((name) => name.isNotEmpty)
+        .toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 38,

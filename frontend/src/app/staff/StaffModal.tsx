@@ -77,10 +77,10 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
       autoPrint,
       autoSendEmail,
       autoSendSms,
+      siteId: siteId || null,
     };
     if (email.trim()) payload.email = email.trim();
     if (password) payload.password = password;
-    if (siteId) payload.siteId = siteId;
 
     mutation.mutate(payload);
   };
@@ -119,8 +119,10 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
 
               <div className="p-8 flex flex-col gap-5 max-h-[60vh] overflow-y-auto">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Full Name</label>
+                  <label htmlFor="staff-name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Full Name</label>
                   <input
+                    id="staff-name"
+                    name="name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -130,8 +132,10 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Email Address (Optional)</label>
+                  <label htmlFor="staff-email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Email Address (Optional)</label>
                   <input
+                    id="staff-email"
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -141,8 +145,10 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Phone Number</label>
+                  <label htmlFor="staff-phone" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Phone Number</label>
                   <input
+                    id="staff-phone"
+                    name="phone"
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -152,10 +158,12 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">
+                  <label htmlFor="staff-password" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">
                     {staff ? "New Password (Optional)" : "Password"}
                   </label>
                   <input
+                    id="staff-password"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -166,8 +174,10 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Role</label>
+                    <label htmlFor="staff-role" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Role</label>
                     <select
+                      id="staff-role"
+                      name="role"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
                       className="w-full h-12 px-4 bg-background border border-border rounded-xl text-[13px] font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
@@ -178,8 +188,10 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Assigned Site</label>
+                    <label htmlFor="staff-site" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Assigned Site</label>
                     <select
+                      id="staff-site"
+                      name="siteId"
                       value={siteId}
                       onChange={(e) => setSiteId(e.target.value)}
                       className="w-full h-12 px-4 bg-background border border-border rounded-xl text-[13px] font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"

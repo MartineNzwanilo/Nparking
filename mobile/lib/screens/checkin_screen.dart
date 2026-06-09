@@ -25,7 +25,7 @@ class CheckInScreen extends StatefulWidget {
 }
 
 class _CheckInScreenState extends State<CheckInScreen> {
-  String _selectedCategory = 'Sedan/SUV';
+  String? _selectedCategory;
   bool _isNewVehicle = true;
   Map<String, dynamic>? _selectedVehicle;
   List<Map<String, dynamic>> _searchResults = [];
@@ -292,17 +292,29 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                           .map((c) => (c['name'] ?? '').toString())
                                           .where((name) => name.isNotEmpty)
                                           .toList();
-                                      if (categories.isEmpty) {
-                                        categories.addAll(['Sedan/SUV', 'Bodaboda', 'Bajaji', 'Daladala', 'Lorry']);
+
+                                      String? dropdownValue = _selectedCategory;
+                                      if (dropdownValue != null && !categories.contains(dropdownValue)) {
+                                        dropdownValue = null;
                                       }
-                                      if (!categories.contains(_selectedCategory)) {
-                                        categories.insert(0, _selectedCategory);
+                                      if (dropdownValue == null && categories.isNotEmpty) {
+                                        dropdownValue = categories.first;
                                       }
+                                      
+                                      // Ensure we sync the state back if it was null
+                                      if (_selectedCategory == null && dropdownValue != null) {
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          if (mounted) {
+                                            setState(() => _selectedCategory = dropdownValue);
+                                          }
+                                        });
+                                      }
+
                                       return DropdownButtonFormField<String>(
                                         dropdownColor: Theme.of(context).cardColor,
                                         style: TextStyle(color: AppTheme.textPrimary(context)),
                                         isExpanded: true,
-                                        value: categories.contains(_selectedCategory) ? _selectedCategory : categories.first,
+                                        value: categories.isEmpty ? null : dropdownValue,
                                         decoration: InputDecoration(
                                           prefixIcon: Icon(LucideIcons.car, color: isDark ? Colors.white38 : Colors.black38),
                                           labelText: context.t.tr('selectVehicleCategory'),
@@ -460,14 +472,14 @@ class _CheckInScreenState extends State<CheckInScreen> {
                                 final provider = context.read<VehicleProvider>();
                                 double amount = 0;
                                 try {
-                                  final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory);
+                                  final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory, orElse: () => {'price': 0});
                                   amount = (cat['price'] as num).toDouble();
                                 } catch (_) {}
 
                                 try {
                                   await provider.registerVehicle(
                                     plate,
-                                    _selectedCategory,
+                                    _selectedCategory ?? '',
                                     owner,
                                     phone: _phoneController.text.trim(),
                                     email: _emailController.text.trim(),
@@ -1021,7 +1033,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                         final provider = context.read<VehicleProvider>();
                         double amount = 0;
                         try {
-                          final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory);
+                          final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory, orElse: () => {'price': 0});
                           amount = (cat['price'] as num).toDouble();
                         } catch (_) {}
 
@@ -1042,7 +1054,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                         try {
                           final session = await provider.checkInVehicle(
                             _plateController.text.toUpperCase(), 
-                            _selectedCategory, 
+                            _selectedCategory ?? '', 
                             amount,
                             driverName: _driverNameController.text.trim(),
                             driverPhone: _driverPhoneController.text.trim(),

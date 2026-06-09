@@ -40,6 +40,14 @@ async function bootstrap() {
     credentials: false,
   });
 
+  // Security and performance headers middleware
+  app.use((req, res, next) => {
+    res.removeHeader('X-Powered-By');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    next();
+  });
+
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 
   // Seed built-in categories after server starts
