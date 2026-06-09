@@ -95,27 +95,36 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () async {
                           final confirmed = await showDialog<bool>(
                             context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Clear App Cache'),
-                              content: const Text('This will delete all offline data and pending syncs. Proceed?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true), 
-                                  child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                            barrierDismissible: false,
+                            builder: (context) {
+                              bool isClearing = false;
+                              return StatefulBuilder(
+                                builder: (context, setStateDialog) => AlertDialog(
+                                  title: const Text('Clear App Cache'),
+                                  content: const Text('This will delete all offline data and pending syncs. Proceed?'),
+                                  actions: [
+                                    TextButton(onPressed: isClearing ? null : () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                    TextButton(
+                                      onPressed: isClearing ? null : () async {
+                                        setStateDialog(() => isClearing = true);
+                                        await DatabaseHelper.instance.clearAll();
+                                        if (context.mounted) Navigator.pop(context, true);
+                                      }, 
+                                      child: isClearing
+                                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.red, strokeWidth: 2))
+                                          : const Text('Clear', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          );
-                          if (confirmed == true) {
-                            await DatabaseHelper.instance.clearAll();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('App cache cleared successfully!')),
                               );
-                              context.read<VehicleProvider>().fetchVehicles();
-                              context.read<ActivityProvider>().fetchActivities();
                             }
+                          );
+                          if (confirmed == true && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('App cache cleared successfully!')),
+                            );
+                            context.read<VehicleProvider>().fetchVehicles();
+                            context.read<ActivityProvider>().fetchActivities();
                           }
                         },
                       ),

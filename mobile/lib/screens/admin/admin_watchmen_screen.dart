@@ -46,6 +46,7 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
+        bool isLoading = false;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final sites = context.watch<AdminProvider>().sites;
@@ -187,9 +188,10 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
-                  onPressed: () async {
+                  onPressed: isLoading ? null : () async {
                     if (!formKey.currentState!.validate()) return;
-
+                    
+                    setDialogState(() => isLoading = true);
                     final data = <String, dynamic>{
                       'name': nameController.text.trim(),
                       'phone': phoneController.text.trim(),
@@ -226,9 +228,15 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
                           ),
                         );
                       }
+                    } finally {
+                      if (context.mounted) {
+                        setDialogState(() => isLoading = false);
+                      }
                     }
                   },
-                  child: Text(isEdit ? 'SAVE' : 'REGISTER', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text(isEdit ? 'SAVE' : 'REGISTER', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -241,40 +249,55 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
   void _confirmDeleteUser(BuildContext context, Map<String, dynamic> user) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Suspend Access?'),
-        content: Text('Are you sure you want to suspend access credentials for ${user['name']}? they will no longer be able to log in to operators screens.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCEL'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await context.read<AdminProvider>().deleteUser(user['id']);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Staff member ${user['name']} suspended.'),
-                      backgroundColor: AppTheme.success,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to suspend staff member.')),
-                  );
-                }
-              }
-            },
-            child: const Text('SUSPEND', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Suspend Access?'),
+              content: Text('Are you sure you want to suspend access credentials for ${user['name']}? they will no longer be able to log in to operators screens.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('CANCEL'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+                  onPressed: isLoading ? null : () async {
+                    setDialogState(() => isLoading = true);
+                    try {
+                      await context.read<AdminProvider>().deleteUser(user['id']);
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Staff member ${user['name']} suspended.'),
+                            backgroundColor: AppTheme.success,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to suspend staff member.')),
+                        );
+                      }
+                    } finally {
+                      if (context.mounted) {
+                        setDialogState(() => isLoading = false);
+                      }
+                    }
+                  },
+                  child: isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('SUSPEND', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

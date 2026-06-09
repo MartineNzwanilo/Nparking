@@ -257,12 +257,16 @@ class AdminLocationsScreen extends StatelessWidget {
     showDialog(
       context: context,
       barrierColor: Colors.black87,
+      barrierDismissible: false,
       builder: (ctx) {
+        bool isSaving = false;
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Container(
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
@@ -357,8 +361,9 @@ class AdminLocationsScreen extends StatelessWidget {
                               foregroundColor: Colors.black,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                            onPressed: () async {
+                            onPressed: isSaving ? null : () async {
                               if (!formKey.currentState!.validate()) return;
+                              setStateDialog(() => isSaving = true);
                               final name = nameController.text.trim();
                               final loc = locationController.text.trim();
                               final cap = int.parse(capacityController.text.trim());
@@ -383,9 +388,15 @@ class AdminLocationsScreen extends StatelessWidget {
                                 if (ctx.mounted) {
                                   GlobalPopup.showError(ctx, e.toString().replaceAll('Exception: ', ''), title: 'ERROR');
                                 }
+                              } finally {
+                                if (ctx.mounted) {
+                                  setStateDialog(() => isSaving = false);
+                                }
                               }
                             },
-                            child: Text(site == null ? 'Create' : 'Save'),
+                            child: isSaving 
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                                : Text(site == null ? 'Create' : 'Save'),
                           ),
                         ),
                       ],
@@ -394,7 +405,8 @@ class AdminLocationsScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          );
+          },
         );
       },
     );
@@ -404,12 +416,16 @@ class AdminLocationsScreen extends StatelessWidget {
     showDialog(
       context: context,
       barrierColor: Colors.black87,
+      barrierDismissible: false,
       builder: (ctx) {
+        bool isDeleting = false;
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Container(
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
@@ -467,7 +483,8 @@ class AdminLocationsScreen extends StatelessWidget {
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        onPressed: () async {
+                        onPressed: isDeleting ? null : () async {
+                          setStateDialog(() => isDeleting = true);
                           final adminProvider = context.read<AdminProvider>();
                           try {
                             await adminProvider.deleteSite(site['id']);
@@ -480,16 +497,23 @@ class AdminLocationsScreen extends StatelessWidget {
                               GlobalPopup.showError(ctx, e.toString().replaceAll('Exception: ', ''), title: 'FAILED');
                               Navigator.pop(ctx);
                             }
+                          } finally {
+                            if (ctx.mounted) {
+                              setStateDialog(() => isDeleting = false);
+                            }
                           }
                         },
-                        child: const Text('Delete'),
+                        child: isDeleting 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Delete'),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
+          );
+          },
         );
       },
     );

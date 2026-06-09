@@ -41,87 +41,117 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
     final isBlacklisted = vehicle['isBlacklisted'] ?? false;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isBlacklisted ? 'Remove from Blacklist?' : 'Add to Blacklist?'),
-        content: Text(
-          isBlacklisted
-              ? 'Are you sure you want to whitelist vehicle ${vehicle['plateNumber']}?'
-              : 'Are you sure you want to blacklist vehicle ${vehicle['plateNumber']}? Blacklisted vehicles will trigger alarms on entry.'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCEL'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isBlacklisted ? AppTheme.success : AppTheme.error,
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await context.read<VehicleProvider>().toggleBlacklist(vehicle['id'], isBlacklisted);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isBlacklisted
-                            ? 'Vehicle ${vehicle['plateNumber']} whitelisted successfully.'
-                            : 'Vehicle ${vehicle['plateNumber']} blacklisted successfully.'
-                      ),
-                      backgroundColor: isBlacklisted ? AppTheme.success : AppTheme.error,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to update blacklist status.')),
-                  );
-                }
-              }
-            },
-            child: Text(isBlacklisted ? 'WHITELIST' : 'BLACKLIST', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(isBlacklisted ? 'Remove from Blacklist?' : 'Add to Blacklist?'),
+              content: Text(
+                isBlacklisted
+                    ? 'Are you sure you want to whitelist vehicle ${vehicle['plateNumber']}?'
+                    : 'Are you sure you want to blacklist vehicle ${vehicle['plateNumber']}? Blacklisted vehicles will trigger alarms on entry.'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('CANCEL'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isBlacklisted ? AppTheme.success : AppTheme.error,
+                  ),
+                  onPressed: isLoading ? null : () async {
+                    setDialogState(() => isLoading = true);
+                    try {
+                      await context.read<VehicleProvider>().toggleBlacklist(vehicle['id'], isBlacklisted);
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isBlacklisted
+                                  ? 'Vehicle ${vehicle['plateNumber']} whitelisted successfully.'
+                                  : 'Vehicle ${vehicle['plateNumber']} blacklisted successfully.'
+                            ),
+                            backgroundColor: isBlacklisted ? AppTheme.success : AppTheme.error,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to update blacklist status.')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setDialogState(() => isLoading = false);
+                      }
+                    }
+                  },
+                  child: isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text(isBlacklisted ? 'WHITELIST' : 'BLACKLIST', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   void _confirmCheckOut(Map<String, dynamic> session, String plateNumber) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Check Out Vehicle?'),
-        content: Text('Are you sure you want to check out vehicle $plateNumber?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCEL'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await context.read<VehicleProvider>().checkOutVehicle(session['id']);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Vehicle $plateNumber checked out successfully.'), backgroundColor: AppTheme.success),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to check out vehicle.')),
-                  );
-                }
-              }
-            },
-            child: const Text('CHECK OUT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Check Out Vehicle?'),
+              content: Text('Are you sure you want to check out vehicle $plateNumber?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('CANCEL'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                  onPressed: isLoading ? null : () async {
+                    setDialogState(() => isLoading = true);
+                    try {
+                      await context.read<VehicleProvider>().checkOutVehicle(session['id']);
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Vehicle $plateNumber checked out successfully.'), backgroundColor: AppTheme.success),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to check out vehicle.')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setDialogState(() => isLoading = false);
+                      }
+                    }
+                  },
+                  child: isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('CHECK OUT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -152,8 +182,11 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (dialogCtx, setStateDialog) {
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder: (dialogCtx, setStateDialog) {
           Widget _toggleChip(IconData icon, String label, bool isActive, Function(bool) onChanged) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             return GestureDetector(
@@ -230,8 +263,8 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
-                onPressed: () async {
-                  Navigator.pop(ctx);
+                onPressed: isLoading ? null : () async {
+                  setStateDialog(() => isLoading = true);
                   try {
                     final session = await provider.checkInVehicle(
                       vehicle['plateNumber'], 
@@ -248,6 +281,7 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                     }
                     
                     if (mounted) {
+                      Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Vehicle ${vehicle['plateNumber']} checked in successfully.'), backgroundColor: AppTheme.success),
                       );
@@ -264,14 +298,21 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                         const SnackBar(content: Text('Failed to check in vehicle.')),
                       );
                     }
+                  } finally {
+                    if (mounted) {
+                      setStateDialog(() => isLoading = false);
+                    }
                   }
                 },
-                child: const Text('CHECK IN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: isLoading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('CHECK IN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
         },
-      ),
+      );
+      },
     );
   }
 

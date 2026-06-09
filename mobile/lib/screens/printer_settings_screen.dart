@@ -153,6 +153,39 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     }
   }
 
+  void _showDeletePrinterDialog(NetworkPrinter printer) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isDeleting = false;
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            title: const Text('Delete Printer'),
+            content: Text('Are you sure you want to delete ${printer.name}?'),
+            actions: [
+              TextButton(
+                onPressed: isDeleting ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                onPressed: isDeleting ? null : () async {
+                  setStateDialog(() => isDeleting = true);
+                  await _removePrinter(printer.id);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: isDeleting 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.error, strokeWidth: 2))
+                    : const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
   Future<void> _setDefaultPrinter(String id) async {
     final auth = context.read<AuthProvider>();
     if (!auth.isAdmin) return;
@@ -206,6 +239,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
         if (sites.isNotEmpty && selectedSiteId == null) {
           selectedSiteId = sites.first['id'];
         }
+        bool isAdding = false;
         
         return StatefulBuilder(
           builder: (ctx, setStateDialog) => AlertDialog(
@@ -245,21 +279,24 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isAdding ? null : () => Navigator.pop(ctx),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: isAdding ? null : () async {
                   if (selectedSiteId == null && sites.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('No sites available to assign printer.')),
                     );
                     return;
                   }
-                  Navigator.pop(ctx);
-                  _addPrinter(ip, ctrl.text.trim(), selectedSiteId ?? context.read<AuthProvider>().siteId ?? '');
+                  setStateDialog(() => isAdding = true);
+                  await _addPrinter(ip, ctrl.text.trim(), selectedSiteId ?? context.read<AuthProvider>().siteId ?? '');
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                  }
                 },
-                child: const Text('Add'),
+                child: isAdding ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Add'),
               ),
             ],
           ),
@@ -275,53 +312,60 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Printer Details'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Printer Name',
-                  hintText: 'e.g., Main Gate, Exit Gate',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isSaving = false;
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            title: const Text('Edit Printer Details'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Printer Name',
+                      hintText: 'e.g., Main Gate, Exit Gate',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: ipCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Printer IP Address',
+                      hintText: 'e.g., 192.168.1.100',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.text,
+                    validator: (val) => val == null || val.trim().isEmpty ? 'IP/Hostname is required' : null,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: ipCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Printer IP Address',
-                  hintText: 'e.g., 192.168.1.100',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.text,
-                validator: (val) => val == null || val.trim().isEmpty ? 'IP/Hostname is required' : null,
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isSaving ? null : () async {
+                  if (formKey.currentState!.validate()) {
+                    setStateDialog(() => isSaving = true);
+                    final sanitized = ipCtrl.text.trim().replaceAll(' ', '.');
+                    await _updatePrinter(printer.id, nameCtrl.text.trim(), sanitized);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  }
+                },
+                child: isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(ctx);
-                final sanitized = ipCtrl.text.trim().replaceAll(' ', '.');
-                _updatePrinter(printer.id, nameCtrl.text.trim(), sanitized);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -482,7 +526,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                 if (context.read<AuthProvider>().isAdmin)
                   IconButton(
                     icon: const Icon(LucideIcons.trash2, color: AppTheme.error),
-                    onPressed: () => _removePrinter(printer.id),
+                    onPressed: () => _showDeletePrinterDialog(printer),
                   ),
               ],
             ),

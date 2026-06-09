@@ -318,44 +318,56 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
-                                builder: (ctx) => AlertDialog(
-                                  backgroundColor: Theme.of(context).cardTheme.color,
-                                  title: Text(context.t.tr('confirmDelete'), style: TextStyle(color: AppTheme.textPrimary(context))),
-                                  content: Text(
-                                    context.t.tr('areYouSureDeleteActivity'),
-                                    style: TextStyle(color: AppTheme.textSecondary(context)),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
-                                    ),
-                                    TextButton(
-                                      style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: Text(context.t.tr('delete')),
-                                    ),
-                                  ],
-                                ),
+                                barrierDismissible: false,
+                                builder: (ctx) {
+                                  bool isDeleting = false;
+                                  return StatefulBuilder(
+                                    builder: (ctx, setStateDialog) {
+                                      return AlertDialog(
+                                        backgroundColor: Theme.of(context).cardTheme.color,
+                                        title: Text(context.t.tr('confirmDelete'), style: TextStyle(color: AppTheme.textPrimary(context))),
+                                        content: Text(
+                                          context.t.tr('areYouSureDeleteActivity'),
+                                          style: TextStyle(color: AppTheme.textSecondary(context)),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: isDeleting ? null : () => Navigator.pop(ctx, false),
+                                            child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
+                                          ),
+                                          TextButton(
+                                            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                            onPressed: isDeleting ? null : () async {
+                                              setStateDialog(() => isDeleting = true);
+                                              try {
+                                                final sessionId = _getSessionId(activity['id'].toString());
+                                                await context.read<ActivityProvider>().deleteActivity(sessionId);
+                                                if (ctx.mounted) Navigator.pop(ctx, true);
+                                              } catch (e) {
+                                                if (ctx.mounted) {
+                                                  setStateDialog(() => isDeleting = false);
+                                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                                    SnackBar(content: Text(context.t.tr('failedDeleteActivity'))),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            child: isDeleting 
+                                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.error, strokeWidth: 2))
+                                                : Text(context.t.tr('delete')),
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  );
+                                }
                               );
 
                               if (confirm == true && context.mounted) {
                                 Navigator.pop(context); // Close receipt sheet
-                                try {
-                                  final sessionId = _getSessionId(activity['id'].toString());
-                                  await context.read<ActivityProvider>().deleteActivity(sessionId);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(context.t.tr('activityDeleted'))),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(context.t.tr('failedDeleteActivity'))),
-                                    );
-                                  }
-                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(context.t.tr('activityDeleted'))),
+                                );
                               }
                             },
                             icon: const Icon(LucideIcons.trash2, size: 16),
@@ -421,46 +433,58 @@ class _ActivityScreenState extends State<ActivityScreen> {
               onPressed: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Theme.of(context).cardTheme.color,
-                    title: Text(context.t.tr('confirmBulkDelete'), style: TextStyle(color: AppTheme.textPrimary(context))),
-                    content: Text(
-                      context.t.tr('areYouSureBulkDelete'),
-                      style: TextStyle(color: AppTheme.textSecondary(context)),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: Text(context.t.tr('delete')),
-                      ),
-                    ],
-                  ),
+                  barrierDismissible: false,
+                  builder: (ctx) {
+                    bool isDeleting = false;
+                    return StatefulBuilder(
+                      builder: (ctx, setStateDialog) {
+                        return AlertDialog(
+                          backgroundColor: Theme.of(context).cardTheme.color,
+                          title: Text(context.t.tr('confirmBulkDelete'), style: TextStyle(color: AppTheme.textPrimary(context))),
+                          content: Text(
+                            context.t.tr('areYouSureBulkDelete'),
+                            style: TextStyle(color: AppTheme.textSecondary(context)),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: isDeleting ? null : () => Navigator.pop(ctx, false),
+                              child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                              onPressed: isDeleting ? null : () async {
+                                setStateDialog(() => isDeleting = true);
+                                try {
+                                  await context.read<ActivityProvider>().bulkDeleteActivities(_selectedSessionIds.toList());
+                                  if (ctx.mounted) Navigator.pop(ctx, true);
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    setStateDialog(() => isDeleting = false);
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text(context.t.tr('failedDeleteActivities'))),
+                                    );
+                                  }
+                                }
+                              },
+                              child: isDeleting 
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.error, strokeWidth: 2))
+                                  : Text(context.t.tr('delete')),
+                            ),
+                          ],
+                        );
+                      }
+                    );
+                  }
                 );
 
                 if (confirm == true && context.mounted) {
-                  try {
-                    await context.read<ActivityProvider>().bulkDeleteActivities(_selectedSessionIds.toList());
-                    setState(() {
-                      _selectedSessionIds.clear();
-                      _isSelectionMode = false;
-                    });
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(context.t.tr('activitiesDeleted'))),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(context.t.tr('failedDeleteActivities'))),
-                      );
-                    }
-                  }
+                  setState(() {
+                    _selectedSessionIds.clear();
+                    _isSelectionMode = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(context.t.tr('activitiesDeleted'))),
+                  );
                 }
               },
               backgroundColor: AppTheme.error,

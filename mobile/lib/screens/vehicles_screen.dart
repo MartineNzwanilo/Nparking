@@ -109,6 +109,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       barrierColor: Colors.black.withOpacity(isDark ? 0.85 : 0.6),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
+        bool isLoading = false;
         return StatefulBuilder(
           builder: (context, setState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -465,10 +466,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                 backgroundColor: AppTheme.primary,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
-                              onPressed: () async {
+                              onPressed: isLoading ? null : () async {
                                 if (!(formKey.currentState?.validate() ?? false)) {
                                   return;
                                 }
+                                setState(() => isLoading = true);
                                 try {
                                   if (editingVehicle != null) {
                                     await context.read<VehicleProvider>().updateVehicle(
@@ -521,12 +523,18 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                       SnackBar(content: Text(editingVehicle != null ? 'Failed to update vehicle' : context.t.tr('failedRegisterAndCheckIn'))),
                                     );
                                   }
+                                } finally {
+                                  if (context.mounted) {
+                                    setState(() => isLoading = false);
+                                  }
                                 }
                               },
-                              child: Text(
-                                editingVehicle != null ? (context.t.tr('saveChanges') ?? 'Save Changes') : context.t.tr('completeRegistration'),
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
+                              child: isLoading 
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : Text(
+                                      editingVehicle != null ? (context.t.tr('saveChanges') ?? 'Save Changes') : context.t.tr('completeRegistration'),
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
                             ),
                           ),
                         ),
@@ -1533,40 +1541,50 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       onPressed: () async {
                         final confirm = await showDialog<bool>(
                           context: context,
-                          builder: (ctx) => AlertDialog(
-                            backgroundColor: Theme.of(context).cardTheme.color,
-                            title: Text(context.t.tr('confirmDelete'), style: TextStyle(color: AppTheme.textPrimary(context))),
-                            content: Text(context.t.tr('areYouSureDeleteVehicle'), style: TextStyle(color: AppTheme.textSecondary(context))),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
+                          barrierDismissible: false,
+                          builder: (ctx) {
+                            bool isDeleting = false;
+                            return StatefulBuilder(
+                              builder: (ctx, setStateDialog) => AlertDialog(
+                                backgroundColor: Theme.of(context).cardTheme.color,
+                                title: Text(context.t.tr('confirmDelete'), style: TextStyle(color: AppTheme.textPrimary(context))),
+                                content: Text(context.t.tr('areYouSureDeleteVehicle'), style: TextStyle(color: AppTheme.textSecondary(context))),
+                                actions: [
+                                  TextButton(
+                                    onPressed: isDeleting ? null : () => Navigator.pop(ctx, false),
+                                    child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                    onPressed: isDeleting ? null : () async {
+                                      setStateDialog(() => isDeleting = true);
+                                      try {
+                                        await context.read<VehicleProvider>().deleteVehicle(vehicle['id']);
+                                        if (ctx.mounted) Navigator.pop(ctx, true);
+                                      } catch (e) {
+                                        if (ctx.mounted) {
+                                          setStateDialog(() => isDeleting = false);
+                                          ScaffoldMessenger.of(ctx).showSnackBar(
+                                            SnackBar(content: Text(context.t.tr('failedDeleteVehicle'))),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: isDeleting 
+                                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.error, strokeWidth: 2))
+                                        : Text(context.t.tr('delete')),
+                                  ),
+                                ],
                               ),
-                              TextButton(
-                                style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: Text(context.t.tr('delete')),
-                              ),
-                            ],
-                          ),
+                            );
+                          }
                         );
 
                         if (confirm == true && context.mounted) {
                           Navigator.pop(context); // Close bottom sheet
-                          try {
-                            await context.read<VehicleProvider>().deleteVehicle(vehicle['id']);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(context.t.tr('vehicleDeleted'))),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(context.t.tr('failedDeleteVehicle'))),
-                              );
-                            }
-                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(context.t.tr('vehicleDeleted'))),
+                          );
                         }
                       },
                     ),
@@ -1850,6 +1868,7 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
   bool? overrideSms;
   bool? overrideEmail;
   bool? overridePrint;
+  bool isCheckingIn = false;
 
   @override
   void initState() {
@@ -2249,12 +2268,12 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
-                              icon: const Icon(LucideIcons.logIn, size: 18),
+                              icon: isCheckingIn ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(LucideIcons.logIn, size: 18),
                               label: Text(
                                 context.t.tr('checkIn'),
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
-                              onPressed: () async {
+                              onPressed: isCheckingIn ? null : () async {
                                 final propString = dialogProperties
                                     .where((item) => item.itemController.text.trim().isNotEmpty)
                                     .map((item) {
@@ -2271,7 +2290,7 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
 
                                 // Capture the scaffold context BEFORE popping the dialog
                                 final scaffoldContext = widget.scaffoldContext;
-                                Navigator.pop(context);
+                                setState(() => isCheckingIn = true);
                                 final provider = scaffoldContext.read<VehicleProvider>();
                                 final category = widget.vehicle['category']?['name'] ?? 'Sedan/SUV';
                                 final amount = (widget.vehicle['category']?['price'] as num?)?.toDouble() ?? 0;
@@ -2292,6 +2311,7 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
                                   }
 
                                   if (scaffoldContext.mounted) {
+                                    Navigator.pop(context);
                                     scaffoldContext.read<ActivityProvider>().fetchActivities();
                                     final shouldPrint = overridePrint ?? initPrint;
                                     if (shouldPrint) {
@@ -2372,6 +2392,9 @@ class _VehiclesCheckInDialogContentState extends State<_VehiclesCheckInDialogCon
                                     }
                                   }
                                 } catch (e) {
+                                  if (context.mounted) {
+                                    setState(() => isCheckingIn = false);
+                                  }
                                   if (scaffoldContext.mounted) {
                                     String errorMessage = e.toString();
                                     if (errorMessage.contains('message":"')) {

@@ -9,16 +9,9 @@ import { toast } from "sonner"
 import { Icons8 } from "@/components/ui/icons8"
 import { cn } from "@/lib/utils"
 import { useSiteStore, ParkingSite } from "@/store/useSiteStore"
-
-export interface NetworkPrinter {
-  id: string;
-  name: string;
-  ip: string;
-  port: number;
-  paperSize: string; // '80mm' or '58mm'
-  isDefault: boolean;
-  printSimultaneously: boolean;
-}
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { apiClient } from "@/lib/apiClient"
+import { PrinterModal } from "./PrinterModal"
 
 const ACCENT_COLORS = [
     { label: "Sky Blue",    value: "#04a9f5" },
@@ -60,14 +53,46 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const { parkingSites, activeSiteId } = useSiteStore()
   
-  const [printers, setPrinters] = useState<NetworkPrinter[]>([]);
-  const [newPrinter, setNewPrinter] = useState<Partial<NetworkPrinter>>({ port: 9100, paperSize: '80mm', isDefault: false, printSimultaneously: false });
-  const [isAddingPrinter, setIsAddingPrinter] = useState(false);
+  const queryClient = useQueryClient()
+  const [printerModalOpen, setPrinterModalOpen] = useState(false)
+  const [editingPrinter, setEditingPrinter] = useState<any>(null)
 
-  const savePrinters = (newPrinters: NetworkPrinter[]) => {
-    setPrinters(newPrinters);
-    localStorage.setItem('network_printers_list', JSON.stringify(newPrinters));
-  };
+  const { data: printers, isLoading: isPrintersLoading } = useQuery({
+    queryKey: ["printers"],
+    queryFn: async () => {
+      const res = await apiClient.get("/api/printer")
+      return res.data
+    }
+  })
+
+  const deletePrinterMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/printer/${id}`)
+    },
+    onSuccess: () => {
+      toast.success("Printer deleted successfully")
+      queryClient.invalidateQueries({ queryKey: ["printers"] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to delete printer")
+    }
+  })
+
+  const handleAddPrinter = () => {
+    setEditingPrinter(null)
+    setPrinterModalOpen(true)
+  }
+
+  const handleEditPrinter = (printer: any) => {
+    setEditingPrinter(printer)
+    setPrinterModalOpen(true)
+  }
+
+  const handleDeletePrinter = (id: string) => {
+    if (confirm("Are you sure you want to delete this printer?")) {
+      deletePrinterMutation.mutate(id)
+    }
+  }
   
   const [settings, setSettings] = useState({
     smtpHost: '',
@@ -124,10 +149,7 @@ export default function SettingsPage() {
       { label: "Administration", href: "/settings" }
     ])
     
-    const savedPrinters = localStorage.getItem('network_printers_list');
-    if (savedPrinters) {
-      try { setPrinters(JSON.parse(savedPrinters)); } catch (e) {}
-    }
+
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings`)
       .then(res => res.json())
@@ -855,143 +877,75 @@ export default function SettingsPage() {
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col gap-8"
+              className="flex flex-col gap-6"
             >
-              <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden">
-                <div className="p-5 border-b border-border/50 bg-secondary/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
-                      <Icons8 icon="printer" className="w-5 h-5 text-cyan-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-[13px] font-black uppercase tracking-tight text-foreground">Exposed Network Printers</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground">Manage IP thermal printers for printing receipts and reports.</p>
-                    </div>
+              <div className="flex items-center justify-between mb-4">
+                  <div>
+                      <h3 className="text-[18px] font-black uppercase tracking-widest text-foreground">Hardware & Printers</h3>
+                      <p className="text-[12px] font-bold text-muted-foreground mt-1">Manage ESC/POS receipt printers across facilities.</p>
                   </div>
                   <button 
-                    onClick={() => {
-                      if (isAddingPrinter) {
-                        setIsAddingPrinter(false);
-                        setNewPrinter({ port: 9100, paperSize: '80mm' });
-                      } else {
-                        setIsAddingPrinter(true);
-                      }
-                    }}
-                    className="px-4 py-2 bg-primary text-white rounded-lg text-[10px] font-bold uppercase tracking-widest"
+                    onClick={handleAddPrinter}
+                    className="h-10 px-8 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white shadow-xl shadow-blue-500/20 transition-all active:scale-95"
                   >
-                    {isAddingPrinter ? 'Cancel' : ((newPrinter as any).id ? 'Edit Printer' : 'Add Printer')}
+                    <Icons8 icon="plus" className="w-4 h-4 invert" />
+                    Add Printer
                   </button>
-                </div>
-                
-                <div className="p-6 space-y-6">
-                  {isAddingPrinter && (
-                    <div className="bg-secondary/20 p-4 rounded-xl border border-border space-y-4 mb-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-muted-foreground">Printer Name</label>
-                          <input type="text" value={newPrinter.name || ''} onChange={(e) => setNewPrinter({...newPrinter, name: e.target.value})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none" placeholder="e.g. Main Gate Printer" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-muted-foreground">IP Address</label>
-                          <input type="text" value={newPrinter.ip || ''} onChange={(e) => setNewPrinter({...newPrinter, ip: e.target.value})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none" placeholder="192.168.1.100" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-muted-foreground">Port</label>
-                          <input type="number" value={newPrinter.port || 9100} onChange={(e) => setNewPrinter({...newPrinter, port: parseInt(e.target.value)})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-muted-foreground">Paper Size</label>
-                          <select value={newPrinter.paperSize || '80mm'} onChange={(e) => setNewPrinter({...newPrinter, paperSize: e.target.value})} className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm focus:border-primary focus:outline-none">
-                            <option value="80mm">80mm</option>
-                            <option value="58mm">58mm</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-3 mt-4">
-                        <button 
-                          onClick={() => {
-                            if (newPrinter.name && newPrinter.ip) {
-                              let finalIp = newPrinter.ip;
-                              let finalPort = newPrinter.port || 9100;
-                              if (finalIp.includes(':')) {
-                                const parts = finalIp.split(':');
-                                finalIp = parts[0];
-                                if (parts.length > 1 && parseInt(parts[1])) {
-                                  finalPort = parseInt(parts[1]);
-                                }
-                              }
-
-                              const p: NetworkPrinter = { 
-                                id: (newPrinter as any).id || Date.now().toString(), 
-                                name: newPrinter.name, 
-                                ip: finalIp, 
-                                port: finalPort, 
-                                paperSize: newPrinter.paperSize || '80mm', 
-                                isDefault: (newPrinter as any).id ? (newPrinter as any).isDefault : printers.length === 0, 
-                                printSimultaneously: false 
-                              };
-
-                              if ((newPrinter as any).id) {
-                                savePrinters(printers.map(x => x.id === p.id ? p : x));
-                              } else {
-                                savePrinters([...printers, p]);
-                              }
-                              setNewPrinter({ port: 9100, paperSize: '80mm' });
-                              setIsAddingPrinter(false);
-                            }
-                          }}
-                          className="px-5 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest"
-                        >
-                          {(newPrinter as any).id ? 'Update Printer' : 'Save Printer'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {printers.length === 0 && !isAddingPrinter ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Icons8 icon="printer" className="w-12 h-12 opacity-20 mx-auto mb-3" />
-                      <p className="text-sm font-medium">No printers configured.</p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {printers.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-4 bg-secondary/10 border border-border rounded-xl">
-                          <div>
-                            <h4 className="font-bold text-foreground flex items-center gap-2">
-                              {p.name} 
-                              {p.isDefault && <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">Default</span>}
-                            </h4>
-                            <p className="text-[11px] text-muted-foreground">{p.ip}:{p.port} • {p.paperSize}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!p.isDefault && (
-                              <button onClick={() => savePrinters(printers.map(x => ({...x, isDefault: x.id === p.id})))} className="text-[10px] font-bold text-primary px-3 py-1 bg-primary/10 rounded-lg">
-                                Set Default
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => {
-                                setNewPrinter(p);
-                                setIsAddingPrinter(true);
-                              }}
-                              className="text-indigo-500 hover:bg-indigo-500/10 p-2 rounded-lg"
-                            >
-                              <Icons8 icon="edit" className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => savePrinters(printers.filter(x => x.id !== p.id))}
-                              className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg"
-                            >
-                              <Icons8 icon="trash" className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
+
+              {isPrintersLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {[1,2].map(i => (
+                    <div key={i} className="h-[140px] bg-secondary/50 rounded-3xl animate-pulse" />
+                  ))}
+                </div>
+              ) : !printers || printers.length === 0 ? (
+                <div className="p-12 text-center border border-border border-dashed rounded-3xl">
+                  <Icons8 icon="printer" className="w-12 h-12 text-muted-foreground opacity-50 mx-auto" />
+                  <p className="text-[13px] font-bold text-muted-foreground mt-3">No printers configured yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {printers.map((printer: any) => (
+                        <div key={printer.id} className="bg-card border border-border shadow-sm rounded-3xl p-6 transition-all group flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-start justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-blue-500/10 text-blue-500">
+                                          <Icons8 icon="printer" className="w-6 h-6" />
+                                      </div>
+                                      <div>
+                                          <h4 className="text-[14px] font-black uppercase tracking-widest text-foreground line-clamp-1">{printer.name}</h4>
+                                          <p className="text-[11px] font-bold text-muted-foreground line-clamp-1">{printer.ip}</p>
+                                      </div>
+                                  </div>
+                                  {printer.isDefault && (
+                                    <div className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shrink-0 ml-2 bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                        Default
+                                    </div>
+                                  )}
+                              </div>
+                              
+                              <div className="flex items-start justify-between mt-4">
+                                  <div>
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assigned Facility</p>
+                                      <p className="text-[13px] font-black text-foreground mt-0.5">{printer.site?.name || "Unknown"}</p>
+                                  </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-end gap-3 mt-4 opacity-0 group-hover:opacity-100 transition-opacity pt-4 border-t border-border/50">
+                              <button onClick={() => handleEditPrinter(printer)} className="w-8 h-8 rounded-full bg-secondary text-primary hover:bg-primary hover:text-white flex items-center justify-center transition-colors">
+                                <Icons8 icon="edit" className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDeletePrinter(printer.id)} disabled={deletePrinterMutation.isPending} className="w-8 h-8 rounded-full bg-secondary text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-colors disabled:opacity-50">
+                                <Icons8 icon="trash" className="w-4 h-4" />
+                              </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -1102,6 +1056,13 @@ export default function SettingsPage() {
         </div>
 
       </div>
+
+      <PrinterModal
+        isOpen={printerModalOpen}
+        onClose={() => setPrinterModalOpen(false)}
+        printer={editingPrinter}
+        sites={parkingSites}
+      />
     </div>
   )
 }

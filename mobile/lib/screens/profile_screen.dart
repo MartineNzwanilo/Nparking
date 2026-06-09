@@ -426,50 +426,60 @@ class ProfileScreen extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardTheme.color,
-        title: Text('Change Password', style: TextStyle(color: AppTheme.textPrimary(context))),
-        content: TextField(
-          controller: newPasswordController,
-          obscureText: true,
-          style: TextStyle(color: AppTheme.textPrimary(context)),
-          decoration: InputDecoration(
-            labelText: 'New Password',
-            labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isSaving = false;
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            backgroundColor: Theme.of(context).cardTheme.color,
+            title: Text('Change Password', style: TextStyle(color: AppTheme.textPrimary(context))),
+            content: TextField(
+              controller: newPasswordController,
+              obscureText: true,
+              style: TextStyle(color: AppTheme.textPrimary(context)),
+              decoration: InputDecoration(
+                labelText: 'New Password',
+                labelStyle: TextStyle(color: AppTheme.textSecondary(context)),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                ),
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                onPressed: isSaving ? null : () async {
+                  if (newPasswordController.text.trim().isEmpty) return;
+                  setStateDialog(() => isSaving = true);
+                  try {
+                    await context.read<AuthProvider>().updateProfile(password: newPasswordController.text.trim());
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password updated successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      setStateDialog(() => isSaving = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to update password: $e')),
+                      );
+                    }
+                  }
+                },
+                child: isSaving 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.t.tr('cancel'), style: TextStyle(color: AppTheme.textSecondary(context))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
-            onPressed: () async {
-              if (newPasswordController.text.trim().isEmpty) return;
-              try {
-                await context.read<AuthProvider>().updateProfile(password: newPasswordController.text.trim());
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password updated successfully')),
-                  );
-                }
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to update password: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 
