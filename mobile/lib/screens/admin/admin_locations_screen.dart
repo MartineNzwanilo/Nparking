@@ -403,7 +403,6 @@ class AdminLocationsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                ),
               ),
             ),
           ),
