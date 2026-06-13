@@ -653,10 +653,21 @@ export class SessionService {
     });
   }
 
-  async getLodgeRequests(actor: SessionActor) {
+  async getLodgeRequests(actor: SessionActor, status?: string) {
     const { siteId } = await this.resolveOperatorContext(actor);
     
-    const where: any = { lodgeRequestStatus: 'PENDING', status: 'INSIDE' };
+    const where: any = {};
+    
+    if (status) {
+      where.lodgeRequestStatus = status;
+    } else {
+      where.lodgeRequestStatus = 'PENDING';
+    }
+
+    if (where.lodgeRequestStatus === 'PENDING') {
+      where.status = 'INSIDE';
+    }
+
     if (siteId && siteId !== 'all') {
       where.siteId = siteId;
     }

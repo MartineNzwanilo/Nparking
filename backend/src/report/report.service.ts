@@ -34,8 +34,12 @@ export class ReportService {
     const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
     // Calculate Expected Revenue (unpaid early checkins currently parked inside)
+    // Exclude APPROVED lodge requests because they are free
     const expectedRevenue = sessions.reduce((sum, s) => {
-      return (s.isPreCheckIn && !s.payment && s.status === 'INSIDE') ? sum + s.amountDue : sum;
+      if (s.isPreCheckIn && !s.payment && s.status === 'INSIDE' && s.lodgeRequestStatus !== 'APPROVED') {
+        return sum + s.amountDue;
+      }
+      return sum;
     }, 0);
 
     // Calculate Total Fines charged in the period
@@ -145,9 +149,16 @@ export class ReportService {
     });
     const todaysRevenue = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
 
-    // Today's Expected Revenue
+    // Today's Expected Revenue (excluding APPROVED lodge requests)
     const todaysExpectedSessions = await this.prisma.parkingSession.findMany({
-      where: { ...sessionWhere, checkIn: { gte: today }, isPreCheckIn: true, payment: null, status: 'INSIDE' },
+      where: { 
+        ...sessionWhere, 
+        checkIn: { gte: today }, 
+        isPreCheckIn: true, 
+        payment: null, 
+        status: 'INSIDE',
+        lodgeRequestStatus: { not: 'APPROVED' }
+      },
     });
     const todaysExpectedRevenue = todaysExpectedSessions.reduce((sum, s) => sum + s.amountDue, 0);
 

@@ -34,8 +34,9 @@ export class SessionController {
   @Roles('ADMIN', 'LODGEMAN')
   getLodgeRequests(
     @Req() req: { user: { userId: string; role: string; siteId?: string | null } },
+    @Query('status') status?: string,
   ) {
-    return this.sessionService.getLodgeRequests(req.user);
+    return this.sessionService.getLodgeRequests(req.user, status);
   }
 
   @Get(':id')
