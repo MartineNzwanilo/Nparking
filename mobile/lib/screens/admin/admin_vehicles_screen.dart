@@ -396,7 +396,7 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Consumer<VehicleProvider>(
-          builder: (context, provider, child) {
+          builder: (consumerCtx, provider, child) {
             // Retrieve current live vehicle state from provider list
             final currentVehicle = provider.vehicles.firstWhere(
               (v) => v['id'] == vehicle['id'],
