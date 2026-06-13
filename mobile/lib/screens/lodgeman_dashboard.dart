@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../core/api_service.dart';
 import '../services/printing_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class LodgemanDashboardScreen extends StatefulWidget {
   const LodgemanDashboardScreen({super.key});
@@ -148,8 +150,12 @@ class _LodgemanDashboardScreenState extends State<LodgemanDashboardScreen> with 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Printing authorization for ${req['vehicle']?['plateNumber']}...'), backgroundColor: AppTheme.primary)
     );
+    
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final lodgemanName = auth.name ?? 'Unknown';
+
     try {
-      await PrintingService.printLodgeAuthorization(context, req);
+      await PrintingService.printLodgeAuthorization(context, req, lodgemanName);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Printed successfully!'), backgroundColor: AppTheme.success)

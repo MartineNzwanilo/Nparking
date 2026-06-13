@@ -243,9 +243,9 @@ class PrintingService {
     }
   }
 
-  static Future<void> printLodgeAuthorization(BuildContext? context, Map<String, dynamic> session) async {
+  static Future<void> printLodgeAuthorization(BuildContext? context, Map<String, dynamic> session, String lodgemanName) async {
     try {
-      final bytes = await _buildLodgeAuthBytes(session);
+      final bytes = await _buildLodgeAuthBytes(session, lodgemanName);
       await _sendBytesToPrinters(context, bytes);
     } catch (e) {
       debugPrint('[PrintingService] printLodgeAuthorization failed: $e');
@@ -623,7 +623,7 @@ class PrintingService {
   }
 
   // ─── ESC/POS bytes builder for Lodge Auth ──────────────────────────────────
-  static Future<List<int>> _buildLodgeAuthBytes(Map<String, dynamic> session) async {
+  static Future<List<int>> _buildLodgeAuthBytes(Map<String, dynamic> session, String lodgemanName) async {
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm58, profile);
     List<int> bytes = [];
@@ -634,10 +634,10 @@ class PrintingService {
         ? vehicle['category']['name'] ?? '' : '';
     final String watchman = session['watchman'] != null ? session['watchman']['name'] ?? '' : '';
     final String roomNo = session['lodgeRoomNumber'] ?? 'N/A';
+    final String ticketId = session['id'] ?? '';
     
     final DateTime checkInDate = DateTime.tryParse(session['checkIn'] ?? '') ?? DateTime.now();
     final String checkInStr = DateFormat('dd MMM yyyy, HH:mm').format(checkInDate);
-    final String authTimeStr = DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now());
 
     bytes += generator.reset();
 
@@ -653,12 +653,13 @@ class PrintingService {
     bytes += generator.hr();
 
     // Ticket details
+    bytes += generator.text('Ticket No: ${ticketId.length > 8 ? ticketId.substring(0, 8).toUpperCase() : ticketId}', styles: const PosStyles(bold: true));
     bytes += generator.text('Plate No:  $plate', styles: const PosStyles(bold: true));
     bytes += generator.text('Category:  $category');
     bytes += generator.text('Watchman:  $watchman');
     bytes += generator.text('Room No:   $roomNo', styles: const PosStyles(bold: true));
     bytes += generator.text('Check-in:  $checkInStr');
-    bytes += generator.text('Auth Time: $authTimeStr');
+    bytes += generator.text('Lodgeman:  $lodgemanName');
     
     bytes += generator.hr(ch: '-');
     
@@ -669,6 +670,14 @@ class PrintingService {
     );
     
     bytes += generator.hr();
+    
+    // QR Code for checkout
+    bytes += generator.qrcode(ticketId, size: QRSize.size4);
+    bytes += generator.text(
+      'Scan at Checkout',
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    
     bytes += generator.text(
       'Thank you for your stay!',
       styles: const PosStyles(align: PosAlign.center),
