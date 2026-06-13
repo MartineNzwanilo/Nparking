@@ -184,42 +184,7 @@ class ProfileScreen extends StatelessWidget {
               
               const SizedBox(height: 32),
 
-              // Uber-Style Statistics Cards
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        final shellProv = context.read<ShellNavigationProvider>();
-                        shellProv.setIndex(1); // Vehicles index
-                      },
-                      child: _buildStatCard(
-                        context,
-                        context.t.tr('vehicles'), 
-                        '${vehicles.length}', 
-                        LucideIcons.car,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ActivityScreen()),
-                        );
-                      },
-                      child: _buildStatCard(
-                        context,
-                        context.t.tr('activity'), 
-                        '${activities.length}', 
-                        LucideIcons.activity,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+
               
               const SizedBox(height: 32),
               
