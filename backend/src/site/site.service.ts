@@ -35,7 +35,12 @@ export class SiteService {
     const sites = await this.prisma.parkingSite.findMany({
       include: {
         _count: {
-          select: { users: true, sessions: true },
+          select: { 
+            users: {
+              where: { role: { in: ['WATCHMAN', 'LODGEMAN'] } }
+            }, 
+            sessions: true 
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -66,7 +71,12 @@ export class SiteService {
       where: { id },
       include: {
         _count: {
-          select: { users: true, sessions: true },
+          select: { 
+            users: {
+              where: { role: { in: ['WATCHMAN', 'LODGEMAN'] } }
+            }, 
+            sessions: true 
+          },
         },
       },
     });
@@ -107,7 +117,12 @@ export class SiteService {
       where: { id },
       include: {
         _count: {
-          select: { users: true, sessions: true },
+          select: { 
+            users: {
+              where: { role: { in: ['WATCHMAN', 'LODGEMAN'] } }
+            }, 
+            sessions: true 
+          },
         },
       },
     });

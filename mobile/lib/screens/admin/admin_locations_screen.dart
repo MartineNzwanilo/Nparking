@@ -153,7 +153,7 @@ class AdminLocationsScreen extends StatelessWidget {
             children: [
               Icon(LucideIcons.users, color: AppTheme.textSecondary(context), size: 16),
               const SizedBox(width: 8),
-              Text('$staffCount Watchmen Assigned', style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 13)),
+              Text('$staffCount Staff Assigned', style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 13)),
             ],
           ),
           const SizedBox(height: 8),
