@@ -417,8 +417,9 @@ export default function ReportsPage() {
       <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6">
               <StatCard title="Total Revenue (30 Days)" value={`Tsh ${(overviewQuery.data?.keyMetrics?.totalRevenue ?? 0).toLocaleString()}`} icon="combo-chart" trend={{ value: 0, label: "Live data", isPositive: true }} delay={0.1} />
+              <StatCard title="Expected Revenue" value={`Tsh ${(overviewQuery.data?.keyMetrics?.expectedRevenue ?? 0).toLocaleString()}`} icon="money-bag" trend={{ value: 0, label: "Unpaid early check-ins", isPositive: true }} delay={0.12} />
               <StatCard title="Total Fines Charged" value={`Tsh ${(overviewQuery.data?.keyMetrics?.totalFines ?? 0).toLocaleString()}`} icon="warning-shield" trend={{ value: 0, label: "Overstay penalties", isPositive: false }} delay={0.15} />
               <StatCard title="Avg Session Duration" value={overviewQuery.data?.keyMetrics?.avgSessionDuration ?? '—'} icon="monitor" trend={{ value: 0, label: "Live data", isPositive: true }} delay={0.2} />
               <StatCard title="Total Vehicles (30 Days)" value={(overviewQuery.data?.keyMetrics?.totalVehicles ?? 0).toLocaleString()} icon="car" trend={{ value: 0, label: "Live data", isPositive: true }} delay={0.3} />
