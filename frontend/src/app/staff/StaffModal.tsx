@@ -183,6 +183,7 @@ export function StaffModal({ isOpen, onClose, staff }: StaffModalProps) {
                       className="w-full h-12 px-4 bg-background border border-border rounded-xl text-[13px] font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
                     >
                       <option value="WATCHMAN">Watchman</option>
+                      <option value="LODGEMAN">Lodgeman</option>
                       <option value="ADMIN">Admin</option>
                     </select>
                   </div>

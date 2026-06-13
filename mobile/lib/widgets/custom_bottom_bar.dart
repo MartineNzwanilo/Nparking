@@ -17,6 +17,7 @@ class CustomSimBottomNavBar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
   final bool isAdmin;
+  final bool isLodgeman;
   final BuildContext shellContext;
 
   const CustomSimBottomNavBar({
@@ -24,6 +25,7 @@ class CustomSimBottomNavBar extends StatefulWidget {
     required this.currentIndex,
     required this.onTap,
     required this.isAdmin,
+    this.isLodgeman = false,
     required this.shellContext,
   });
 
@@ -93,6 +95,35 @@ class _CustomSimBottomNavBarState extends State<CustomSimBottomNavBar>
                 _buildAdminTab(3, LucideIcons.wallet, 'Expenses'),
                 _buildAdminTab(4, LucideIcons.fileSpreadsheet, context.t.tr('reports')),
                 _buildAdminTab(5, LucideIcons.car, context.t.tr('vehicles')),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (widget.isLodgeman) {
+      return Container(
+        height: 74,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border(top: BorderSide(color: borderColor)),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            )
+          ],
+        ),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildAdminTab(0, LucideIcons.bellRing, 'Requests'),
+                _buildAdminTab(1, LucideIcons.user, 'Profile'),
               ],
             ),
           ),

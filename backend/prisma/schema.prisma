@@ -133,6 +133,9 @@ model ParkingSession {
   fineAmount          Float?
   actualDepartureTime DateTime?
   watchmanForgot      Boolean  @default(false)
+  // Lodge Guest Authorization tracking
+  lodgeRequestStatus  String?
+  lodgeRoomNumber     String?
   isPreCheckIn        Boolean  @default(false)
   
   payment     Payment?

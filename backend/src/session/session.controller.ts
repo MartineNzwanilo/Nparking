@@ -29,6 +29,15 @@ export class SessionController {
     return this.sessionService.getActivityLog(req.user, startDate, endDate);
   }
 
+  @Get('lodge/requests')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'LODGEMAN')
+  getLodgeRequests(
+    @Req() req: { user: { userId: string; role: string; siteId?: string | null } },
+  ) {
+    return this.sessionService.getLodgeRequests(req.user);
+  }
+
   @Get(':id')
   findOne(
     @Req()
@@ -90,5 +99,36 @@ export class SessionController {
   @Roles('ADMIN')
   bulkRemove(@Body('ids') ids: string[]) {
     return this.sessionService.bulkRemove(ids);
+  }
+
+  // --- Lodge Parking Endpoints ---
+
+  @Post(':id/lodge-request')
+  requestLodgeParking(
+    @Req() req: { user: { userId: string; role: string; siteId?: string | null } },
+    @Param('id') id: string,
+  ) {
+    return this.sessionService.requestLodgeParking(id, req.user);
+  }
+
+  @Post(':id/lodge-approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'LODGEMAN')
+  approveLodgeRequest(
+    @Req() req: { user: { userId: string; role: string; siteId?: string | null } },
+    @Param('id') id: string,
+    @Body('roomNumber') roomNumber: string,
+  ) {
+    return this.sessionService.approveLodgeRequest(id, roomNumber, req.user);
+  }
+
+  @Post(':id/lodge-reject')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'LODGEMAN')
+  rejectLodgeRequest(
+    @Req() req: { user: { userId: string; role: string; siteId?: string | null } },
+    @Param('id') id: string,
+  ) {
+    return this.sessionService.rejectLodgeRequest(id, req.user);
   }
 }

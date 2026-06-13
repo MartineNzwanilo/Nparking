@@ -21,6 +21,7 @@ import 'checkin_screen.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'vehicles_screen.dart';
+import 'lodgeman_dashboard.dart';
 import '../widgets/custom_bottom_bar.dart';
 
 class ShellScreen extends StatefulWidget {
@@ -63,11 +64,24 @@ class _ShellScreenState extends State<ShellScreen> {
         AdminVehiclesScreen(),
       ];
 
+  List<Widget> _lodgemanScreens() => const [
+        LodgemanDashboardScreen(),
+        ProfileScreen(),
+      ];
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, ShellNavigationProvider>(
       builder: (context, auth, nav, child) {
-        final tabs = auth.isAdmin ? _adminScreens() : _watchmanScreens();
+        List<Widget> tabs;
+        if (auth.isAdmin) {
+          tabs = _adminScreens();
+        } else if (auth.isLodgeman) {
+          tabs = _lodgemanScreens();
+        } else {
+          tabs = _watchmanScreens();
+        }
+        
         final effectiveIndex =
             nav.currentIndex.clamp(0, tabs.length - 1).toInt();
 
@@ -89,6 +103,7 @@ class _ShellScreenState extends State<ShellScreen> {
           bottomNavigationBar: CustomSimBottomNavBar(
             currentIndex: effectiveIndex,
             isAdmin: auth.isAdmin,
+            isLodgeman: auth.isLodgeman,
             shellContext: context,
             onTap: (index) {
               context

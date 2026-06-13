@@ -477,9 +477,10 @@ export class SessionService {
     }
 
     const isPreCheckIn = session.isPreCheckIn;
+    const isLodgeApproved = session.lodgeRequestStatus === 'APPROVED';
 
-    // Create payment if this was a pre-check-in
-    if (isPreCheckIn && data.paymentAmount && data.paymentAmount > 0) {
+    // Create payment if this was a pre-check-in, UNLESS it's lodge approved
+    if (isPreCheckIn && !isLodgeApproved && data.paymentAmount && data.paymentAmount > 0) {
       const existingPayment = await this.prisma.payment.findUnique({
         where: { sessionId },
       });
@@ -628,9 +629,83 @@ export class SessionService {
   }
 
   async bulkRemove(ids: string[]) {
-    return this.prisma.$transaction([
-      this.prisma.payment.deleteMany({ where: { sessionId: { in: ids } } }),
-      this.prisma.parkingSession.deleteMany({ where: { id: { in: ids } } }),
-    ]);
+    await this.prisma.payment.deleteMany({
+      where: { sessionId: { in: ids } },
+    });
+    return this.prisma.parkingSession.deleteMany({
+      where: { id: { in: ids } },
+    });
+  }
+
+  // --- Lodge Parking Logic ---
+
+  async requestLodgeParking(sessionId: string, actor: SessionActor) {
+    const { user } = await this.resolveOperatorContext(actor);
+    const session = await this.prisma.parkingSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.status !== 'INSIDE') throw new BadRequestException('Vehicle is already checked out');
+
+    return this.prisma.parkingSession.update({
+      where: { id: sessionId },
+      data: { lodgeRequestStatus: 'PENDING' },
+    });
+  }
+
+  async getLodgeRequests(actor: SessionActor) {
+    const { siteId } = await this.resolveOperatorContext(actor);
+    
+    const where: any = { lodgeRequestStatus: 'PENDING', status: 'INSIDE' };
+    if (siteId && siteId !== 'all') {
+      where.siteId = siteId;
+    }
+
+    return this.prisma.parkingSession.findMany({
+      where,
+      include: {
+        vehicle: { include: { category: true } },
+        watchman: { select: { name: true } },
+      },
+      orderBy: { checkIn: 'desc' },
+    });
+  }
+
+  async approveLodgeRequest(sessionId: string, roomNumber: string, actor: SessionActor) {
+    const { user } = await this.resolveOperatorContext(actor);
+    if (user.role !== 'LODGEMAN' && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only Lodgeman or Admin can approve requests');
+    }
+
+    const session = await this.prisma.parkingSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    return this.prisma.parkingSession.update({
+      where: { id: sessionId },
+      data: {
+        lodgeRequestStatus: 'APPROVED',
+        lodgeRoomNumber: roomNumber,
+        amountDue: 0,
+      },
+    });
+  }
+
+  async rejectLodgeRequest(sessionId: string, actor: SessionActor) {
+    const { user } = await this.resolveOperatorContext(actor);
+    if (user.role !== 'LODGEMAN' && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only Lodgeman or Admin can reject requests');
+    }
+
+    const session = await this.prisma.parkingSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    return this.prisma.parkingSession.update({
+      where: { id: sessionId },
+      data: { lodgeRequestStatus: 'REJECTED' },
+    });
   }
 }

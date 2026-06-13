@@ -151,6 +151,7 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
                         ),
                         items: const [
                           DropdownMenuItem(value: 'WATCHMAN', child: Text('Watchman / Operator')),
+                          DropdownMenuItem(value: 'LODGEMAN', child: Text('Lodge Manager')),
                           DropdownMenuItem(value: 'ADMIN', child: Text('System Administrator')),
                         ],
                         onChanged: (val) => setDialogState(() => selectedRole = val ?? 'WATCHMAN'),
@@ -400,7 +401,12 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
                             final u = filteredUsers[index];
                             final initials = _getInitials(u['name']?.toString() ?? '');
                             final isAdmin = u['role'] == 'ADMIN';
+                            final isLodgeman = u['role'] == 'LODGEMAN';
                             final siteName = u['site']?['name']?.toString() ?? 'Global (All Sites)';
+
+                            Color roleColor = AppTheme.primary;
+                            if (isAdmin) roleColor = AppTheme.warning;
+                            if (isLodgeman) roleColor = AppTheme.success;
 
                             return Container(
                               padding: const EdgeInsets.all(16),
@@ -413,11 +419,11 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 24,
-                                    backgroundColor: isAdmin ? AppTheme.warning.withOpacity(0.15) : AppTheme.primary.withOpacity(0.15),
+                                    backgroundColor: roleColor.withOpacity(0.15),
                                     child: Text(
                                       initials,
                                       style: TextStyle(
-                                        color: isAdmin ? AppTheme.warning : AppTheme.primary,
+                                        color: roleColor,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
                                       ),
@@ -445,13 +451,13 @@ class _AdminWatchmenScreenState extends State<AdminWatchmenScreen> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: isAdmin ? AppTheme.warning.withOpacity(0.15) : AppTheme.primary.withOpacity(0.15),
+                                                color: roleColor.withOpacity(0.15),
                                                 borderRadius: BorderRadius.circular(6),
                                               ),
                                               child: Text(
                                                 u['role']?.toString() ?? 'WATCHMAN',
                                                 style: TextStyle(
-                                                  color: isAdmin ? AppTheme.warning : AppTheme.primary,
+                                                  color: roleColor,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 9,
                                                 ),

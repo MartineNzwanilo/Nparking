@@ -44,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
   bool get autoSendSms => _autoSendSms;
   String? get avatarUrl => _avatarUrl;
   bool get isAdmin => _role == 'ADMIN';
+  bool get isLodgeman => _role == 'LODGEMAN';
   List<dynamic> get sitePrinters => _sitePrinters;
 
   AuthProvider() {

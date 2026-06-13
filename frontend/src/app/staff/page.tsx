@@ -118,7 +118,7 @@ export default function StaffPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
-                          <Icons8 icon={user.role === 'ADMIN' ? 'briefcase' : 'road-worker'} className="w-5 h-5 text-primary" />
+                          <Icons8 icon={user.role === 'ADMIN' ? 'briefcase' : user.role === 'LODGEMAN' ? 'home' : 'road-worker'} className="w-5 h-5 text-primary" />
                         </div>
                         <span className="text-[13px] font-black uppercase tracking-widest text-foreground">{user.name}</span>
                       </div>
@@ -126,7 +126,9 @@ export default function StaffPage() {
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                        user.role === 'ADMIN' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                        user.role === 'ADMIN' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : 
+                        user.role === 'LODGEMAN' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                        "bg-blue-500/10 text-blue-500 border-blue-500/20"
                       )}>
                         {user.role}
                       </span>

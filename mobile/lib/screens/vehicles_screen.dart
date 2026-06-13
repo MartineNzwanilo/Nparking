@@ -1494,6 +1494,26 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 ),
               ),
 
+              if (isInside)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.success.withOpacity(0.1),
+                      foregroundColor: AppTheme.success,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(LucideIcons.home, size: 18),
+                    label: const Text('Request Lodge Parking (Free)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _requestLodgeParking(context, vehicle['sessions'][0]['id']);
+                    },
+                  ),
+                ),
               // Bottom Sheet Actions
               Row(
                 children: [
@@ -1865,6 +1885,34 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       },
       child: content,
     );
+  }
+
+  Future<void> _requestLodgeParking(BuildContext context, String sessionId) async {
+    try {
+      final auth = context.read<AuthProvider>();
+      final uri = Uri.parse('${Config.apiUrl}/api/sessions/$sessionId/lodge-request');
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer ${auth.token}',
+        },
+      );
+      if (res.statusCode == 200) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Lodge parking request sent.'), backgroundColor: AppTheme.success)
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to request lodge parking.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error requesting lodge parking: $e');
+    }
   }
 }
 
