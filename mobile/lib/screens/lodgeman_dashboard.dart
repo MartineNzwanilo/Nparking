@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../core/api_service.dart';
+import '../services/printing_service.dart';
 
 class LodgemanDashboardScreen extends StatefulWidget {
   const LodgemanDashboardScreen({super.key});
@@ -144,16 +145,22 @@ class _LodgemanDashboardScreenState extends State<LodgemanDashboardScreen> with 
   }
 
   Future<void> _printReceipt(Map<String, dynamic> req) async {
-    // Scaffold showing printing state
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Printing authorization for ${req['vehicle']?['plateNumber']}...'), backgroundColor: AppTheme.primary)
     );
-    // Real implementation will connect to BluetoothThermalPrinter
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Printed successfully!'), backgroundColor: AppTheme.success)
-      );
+    try {
+      await PrintingService.printLodgeAuthorization(context, req);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Printed successfully!'), backgroundColor: AppTheme.success)
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Print failed: $e'), backgroundColor: AppTheme.error)
+        );
+      }
     }
   }
 

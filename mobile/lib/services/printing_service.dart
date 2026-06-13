@@ -243,6 +243,16 @@ class PrintingService {
     }
   }
 
+  static Future<void> printLodgeAuthorization(BuildContext? context, Map<String, dynamic> session) async {
+    try {
+      final bytes = await _buildLodgeAuthBytes(session);
+      await _sendBytesToPrinters(context, bytes);
+    } catch (e) {
+      debugPrint('[PrintingService] printLodgeAuthorization failed: $e');
+      rethrow;
+    }
+  }
+
   static Future<void> printActivityReport(BuildContext? context, List<Map<String, dynamic>> activities) async {
     try {
       final profile = await CapabilityProfile.load();
@@ -603,6 +613,64 @@ class PrintingService {
     );
     bytes += generator.text(
       'Thank you for parking with us!',
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    bytes += generator.feed(3);
+    bytes += generator.cut();
+
+    return bytes;
+  }
+
+  // ─── ESC/POS bytes builder for Lodge Auth ──────────────────────────────────
+  static Future<List<int>> _buildLodgeAuthBytes(Map<String, dynamic> session) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm58, profile);
+    List<int> bytes = [];
+
+    final vehicle = session['vehicle'];
+    final String plate = vehicle != null ? vehicle['plateNumber'] ?? '' : '';
+    final String category = (vehicle != null && vehicle['category'] != null)
+        ? vehicle['category']['name'] ?? '' : '';
+    final String watchman = session['watchman'] != null ? session['watchman']['name'] ?? '' : '';
+    final String roomNo = session['lodgeRoomNumber'] ?? 'N/A';
+    
+    final DateTime checkInDate = DateTime.tryParse(session['checkIn'] ?? '') ?? DateTime.now();
+    final String checkInStr = DateFormat('dd MMM yyyy, HH:mm').format(checkInDate);
+    final String authTimeStr = DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now());
+
+    bytes += generator.reset();
+
+    // Header
+    bytes += generator.text(
+      'NGEWA PARKING SYSTEM',
+      styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size1),
+    );
+    bytes += generator.text(
+      'LODGE PARKING AUTH',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    bytes += generator.hr();
+
+    // Ticket details
+    bytes += generator.text('Plate No:  $plate', styles: const PosStyles(bold: true));
+    bytes += generator.text('Category:  $category');
+    bytes += generator.text('Watchman:  $watchman');
+    bytes += generator.text('Room No:   $roomNo', styles: const PosStyles(bold: true));
+    bytes += generator.text('Check-in:  $checkInStr');
+    bytes += generator.text('Auth Time: $authTimeStr');
+    
+    bytes += generator.hr(ch: '-');
+    
+    // Fee Status
+    bytes += generator.text(
+      'PARKING FEE WAIVED (TZS 0)',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    
+    bytes += generator.hr();
+    bytes += generator.text(
+      'Thank you for your stay!',
       styles: const PosStyles(align: PosAlign.center),
     );
 
