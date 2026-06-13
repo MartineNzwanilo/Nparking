@@ -33,9 +33,9 @@ export class ReportService {
     // Calculate Total Revenue (payments collected)
     const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
-    // Calculate Expected Revenue (unpaid early checkins)
+    // Calculate Expected Revenue (unpaid early checkins currently parked inside)
     const expectedRevenue = sessions.reduce((sum, s) => {
-      return (s.isPreCheckIn && !s.payment) ? sum + s.amountDue : sum;
+      return (s.isPreCheckIn && !s.payment && s.status === 'INSIDE') ? sum + s.amountDue : sum;
     }, 0);
 
     // Calculate Total Fines charged in the period
@@ -147,7 +147,7 @@ export class ReportService {
 
     // Today's Expected Revenue
     const todaysExpectedSessions = await this.prisma.parkingSession.findMany({
-      where: { ...sessionWhere, checkIn: { gte: today }, isPreCheckIn: true, payment: null },
+      where: { ...sessionWhere, checkIn: { gte: today }, isPreCheckIn: true, payment: null, status: 'INSIDE' },
     });
     const todaysExpectedRevenue = todaysExpectedSessions.reduce((sum, s) => sum + s.amountDue, 0);
 
