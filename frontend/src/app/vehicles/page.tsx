@@ -15,6 +15,7 @@ interface Session {
   checkOut: string | null;
   amountDue: number | null;
   propertiesLeft?: string | null;
+  isPreCheckIn?: boolean;
   site: { name: string };
 }
 
@@ -166,6 +167,7 @@ export default function VehiclesPage() {
               {!isLoading && !isError && vehicles && vehicles.map((vehicle) => {
                 const latestSession = vehicle.sessions?.[0];
                 const isParked = latestSession && !latestSession.checkOut;
+                const isPreCheckIn = isParked && latestSession.isPreCheckIn === true;
 
                 return (
                   <tr key={vehicle.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
@@ -196,9 +198,9 @@ export default function VehiclesPage() {
                         {latestSession ? (
                             <span className={cn(
                                 "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                isParked ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+                                isPreCheckIn ? "bg-amber-500/20 text-amber-600" : (isParked ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")
                             )}>
-                                {isParked ? "Parked" : "Exited"}
+                                {isPreCheckIn ? "Pending" : (isParked ? "Parked" : "Exited")}
                             </span>
                         ) : (
                             <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-secondary text-muted-foreground">

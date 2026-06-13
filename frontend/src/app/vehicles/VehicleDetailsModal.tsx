@@ -11,6 +11,7 @@ interface Session {
   checkOut: string | null;
   amountDue: number | null;
   propertiesLeft?: string | null;
+  isPreCheckIn?: boolean;
   site: { name: string };
 }
 
@@ -103,6 +104,7 @@ export function VehicleDetailsModal({ vehicle, isOpen, onClose }: VehicleDetails
 
   const latestSession = vehicle.sessions?.[0];
   const isParked = latestSession && !latestSession.checkOut;
+  const isPreCheckIn = isParked && latestSession.isPreCheckIn === true;
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
@@ -167,15 +169,15 @@ export function VehicleDetailsModal({ vehicle, isOpen, onClose }: VehicleDetails
                 {/* Status Card */}
                 <div className={cn(
                   "p-6 rounded-2xl border flex items-center justify-between",
-                  isParked ? "bg-emerald-500/5 border-emerald-500/20" : "bg-secondary/30 border-border"
+                  isPreCheckIn ? "bg-amber-500/10 border-amber-500/30" : (isParked ? "bg-emerald-500/5 border-emerald-500/20" : "bg-secondary/30 border-border")
                 )}>
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground mb-1">Current Status</p>
                     <h3 className={cn(
                       "text-xl font-black uppercase tracking-widest",
-                      isParked ? "text-emerald-500" : "text-foreground"
+                      isPreCheckIn ? "text-amber-500" : (isParked ? "text-emerald-500" : "text-foreground")
                     )}>
-                      {isParked ? "Parked Inside" : "Exited / Offline"}
+                      {isPreCheckIn ? "Pending" : (isParked ? "Parked Inside" : "Exited / Offline")}
                     </h3>
                   </div>
                   {isParked && latestSession && (
