@@ -135,6 +135,101 @@ class _CheckInScreenState extends State<CheckInScreen> {
     });
   }
 
+  Future<void> _submitCheckIn(bool isEarlyCheckIn) async {
+    if (!(_checkInFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    if (_isNewVehicle && !isEarlyCheckIn) {
+      _showPremiumRegistrationDialog();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final provider = context.read<VehicleProvider>();
+    double amount = 0;
+    try {
+      final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory, orElse: () => {'price': 0});
+      amount = (cat['price'] as num).toDouble();
+    } catch (_) {}
+
+    final propString = _properties
+        .where((item) => item.itemController.text.trim().isNotEmpty)
+        .map((item) {
+          final name = item.itemController.text.trim();
+          final brand = item.brandController.text.trim();
+          final qty = item.quantity;
+          if (brand.isNotEmpty) {
+            return "$qty $name ($brand)";
+          } else {
+            return "$qty $name";
+          }
+        })
+        .join(', ');
+
+    try {
+      final session = await provider.checkInVehicle(
+        _plateController.text.toUpperCase(), 
+        _selectedCategory ?? '', 
+        amount,
+        driverName: _driverNameController.text.trim(),
+        driverPhone: _driverPhoneController.text.trim(),
+        driverCompany: _driverCompanyController.text.trim(),
+        driverEmail: _driverEmailController.text.trim(),
+        autoSendEmail: _shouldEmail(context),
+        autoSendSms: _shouldSms(context),
+        propertiesLeft: propString,
+        watchmanName: context.read<AuthProvider>().name,
+        isPreCheckIn: isEarlyCheckIn,
+      );
+      
+      if (mounted) {
+        context.read<ActivityProvider>().fetchActivities();
+        _plateController.clear();
+        _driverNameController.clear();
+        _driverPhoneController.clear();
+        _driverCompanyController.clear();
+        _driverEmailController.clear();
+        for (final item in _properties) {
+          item.dispose();
+        }
+        _properties.clear();
+        setState(() {
+          _isNewVehicle = true;
+          _selectedVehicle = null;
+          _overridePrint = null;
+          _overrideEmail = null;
+          _overrideSms = null;
+          _isLoading = false;
+        });
+        if (_shouldPrint(context)) {
+          PrintingService.printTicket(context, session).catchError((err) {
+            if (mounted) {
+              print('Background auto-print failed: $err');
+            }
+          });
+        }
+        if (context.mounted) {
+          context.read<ShellNavigationProvider>().setIndex(1);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(isEarlyCheckIn ? "Early Check-In Successful" : "Check-In Successful")),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
+      );
+    }
+  }
+
   void _selectVehicle(Map<String, dynamic> vehicle) {
     setState(() {
       _selectedVehicle = vehicle;
@@ -992,152 +1087,103 @@ class _CheckInScreenState extends State<CheckInScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              const SizedBox(height: 20),
               
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: Builder(
-                  builder: (context) {
-                    bool isSelectedInside = false;
-                    if (_selectedVehicle != null) {
-                       isSelectedInside = _selectedVehicle!['sessions'] != null && 
-                                          _selectedVehicle!['sessions'].isNotEmpty && 
-                                          _selectedVehicle!['sessions'][0]['status'] == 'INSIDE';
-                    }
+              Builder(
+                builder: (context) {
+                  bool isSelectedInside = false;
+                  if (_selectedVehicle != null) {
+                     isSelectedInside = _selectedVehicle!['sessions'] != null && 
+                                        _selectedVehicle!['sessions'].isNotEmpty && 
+                                        _selectedVehicle!['sessions'][0]['status'] == 'INSIDE';
+                  }
 
-                    return ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isSelectedInside 
-                            ? (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06)) 
-                            : (_isNewVehicle ? AppTheme.warning : AppTheme.success),
-                        foregroundColor: isSelectedInside ? AppTheme.textSecondary(context).withOpacity(0.4) : Colors.white,
-                        elevation: isSelectedInside ? 0 : 8,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: (isSelectedInside || _isLoading) ? null : () async {
-                        if (!(_checkInFormKey.currentState?.validate() ?? false)) {
-                          return;
-                        }
-
-                        if (_isNewVehicle) {
-                          _showPremiumRegistrationDialog();
-                          return;
-                        }
-
-                        setState(() {
-                          _isLoading = true;
-                        });
-
-                        final provider = context.read<VehicleProvider>();
-                        double amount = 0;
-                        try {
-                          final cat = provider.categories.firstWhere((c) => c['name'] == _selectedCategory, orElse: () => {'price': 0});
-                          amount = (cat['price'] as num).toDouble();
-                        } catch (_) {}
-
-                        final propString = _properties
-                            .where((item) => item.itemController.text.trim().isNotEmpty)
-                            .map((item) {
-                              final name = item.itemController.text.trim();
-                              final brand = item.brandController.text.trim();
-                              final qty = item.quantity;
-                              if (brand.isNotEmpty) {
-                                return "$qty $name ($brand)";
-                              } else {
-                                return "$qty $name";
-                              }
-                            })
-                            .join(', ');
-
-                        try {
-                          final session = await provider.checkInVehicle(
-                            _plateController.text.toUpperCase(), 
-                            _selectedCategory ?? '', 
-                            amount,
-                            driverName: _driverNameController.text.trim(),
-                            driverPhone: _driverPhoneController.text.trim(),
-                            driverCompany: _driverCompanyController.text.trim(),
-                            driverEmail: _driverEmailController.text.trim(),
-                            autoSendEmail: _shouldEmail(context),
-                            autoSendSms: _shouldSms(context),
-                            propertiesLeft: propString,
-                            watchmanName: context.read<AuthProvider>().name,
-                          );
-                          
-                          if (mounted) {
-                            context.read<ActivityProvider>().fetchActivities();
-                            _plateController.clear();
-                            _driverNameController.clear();
-                            _driverPhoneController.clear();
-                            _driverCompanyController.clear();
-                            _driverEmailController.clear();
-                            for (final item in _properties) {
-                              item.dispose();
-                            }
-                            _properties.clear();
-                            setState(() {
-                              _isNewVehicle = true;
-                              _selectedVehicle = null;
-                              _overridePrint = null;
-                              _overrideEmail = null;
-                              _overrideSms = null;
-                              _isLoading = false;
-                            });
-                            if (_shouldPrint(context)) {
-                              PrintingService.printTicket(context, session).catchError((err) {
-                                if (mounted) {
-                                  print('Background auto-print failed: $err');
-                                }
-                              });
-                            }
-                            if (context.mounted) {
-                              context.read<ShellNavigationProvider>().setIndex(1);
-                            }
-                          }
-                        } catch (_) {
-                          if (!context.mounted) return;
-                          setState(() {
-                            _isLoading = false;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(context.t.tr('failedCheckInVehicle'))),
-                          );
-                        }
-                      },
-                      child: _isLoading 
-                        ? const SizedBox(
-                            width: 24, 
-                            height: 24, 
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
-                          )
-                        : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            isSelectedInside ? Icons.block : (_isNewVehicle ? LucideIcons.userPlus : LucideIcons.checkCircle), 
-                          ),
-                          const SizedBox(width: 12),
-                          Flexible(
-                            child: Text(
-                              isSelectedInside
-                                  ? context.t.tr('vehicleAlreadyInside')
-                                  : (_isNewVehicle
-                                      ? context.t.tr('registerAndCheckIn')
-                                      : context.t.tr('collectPaymentAndCheckIn')),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: 58,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSelectedInside 
+                                ? (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06)) 
+                                : (_isNewVehicle ? AppTheme.warning : AppTheme.success),
+                            foregroundColor: isSelectedInside ? AppTheme.textSecondary(context).withOpacity(0.4) : Colors.white,
+                            elevation: isSelectedInside ? 0 : 8,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                        ],
+                          onPressed: (isSelectedInside || _isLoading) ? null : () => _submitCheckIn(false),
+                          child: _isLoading 
+                            ? const SizedBox(
+                                width: 24, 
+                                height: 24, 
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                              )
+                            : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isSelectedInside ? Icons.block : (_isNewVehicle ? LucideIcons.userPlus : LucideIcons.checkCircle), 
+                              ),
+                              const SizedBox(width: 12),
+                              Flexible(
+                                child: Text(
+                                  isSelectedInside
+                                      ? context.t.tr('vehicleAlreadyInside')
+                                      : (_isNewVehicle
+                                          ? context.t.tr('registerAndCheckIn')
+                                          : context.t.tr('collectPaymentAndCheckIn')),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    );
-                  }
-                ),
+                      if (!isSelectedInside) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 58,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppTheme.warning, width: 2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            onPressed: _isLoading ? null : () => _submitCheckIn(true),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(LucideIcons.clock, color: AppTheme.warning),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Text(
+                                    _isNewVehicle ? 'Quick Early Check-In (Pay Later)' : 'Early Check-In (Pay Later)',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                      color: AppTheme.warning,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ]
+                    ],
+                  );
+                }
               ),
               const SizedBox(height: 20),
             ],

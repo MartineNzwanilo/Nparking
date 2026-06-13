@@ -236,6 +236,7 @@ class VehicleProvider extends ChangeNotifier {
     String? propertiesLeft,
     String? siteId,
     String? watchmanName,
+    bool isPreCheckIn = false,
   }) async {
     try {
       final payload = {
@@ -250,6 +251,7 @@ class VehicleProvider extends ChangeNotifier {
         if (autoSendSms != null) 'autoSendSms': autoSendSms,
         if (propertiesLeft != null && propertiesLeft.isNotEmpty) 'propertiesLeft': propertiesLeft,
         if (siteId != null && siteId.isNotEmpty) 'siteId': siteId,
+        'isPreCheckIn': isPreCheckIn,
       };
 
       bool forceOffline = SyncService().status == SyncStatus.offline;
@@ -292,6 +294,7 @@ class VehicleProvider extends ChangeNotifier {
           'status': 'INSIDE',
           'checkIn': DateTime.now().toIso8601String(),
           'watchman': watchmanName != null ? {'name': watchmanName} : null,
+          'isPreCheckIn': isPreCheckIn,
         };
         
         final index = _vehicles.indexWhere((v) => v['plateNumber'] == plateNumber);
@@ -334,6 +337,7 @@ class VehicleProvider extends ChangeNotifier {
           'vehicle': {'plateNumber': 'Offline', 'category': {'name': 'Unknown'}},
           'payment': {'amount': 0},
           'driverName': 'Unknown',
+          'isPreCheckIn': false,
         };
       }
       final res = await _apiService.get('/sessions/$sessionId');
@@ -358,12 +362,22 @@ class VehicleProvider extends ChangeNotifier {
     double? fineAmount,
     String? actualDepartureTime,
     bool watchmanForgot = false,
+    String? driverName,
+    String? driverPhone,
+    String? driverEmail,
+    String? driverCompany,
+    double? paymentAmount,
   }) async {
     try {
       final payload = {
         if (fineAmount != null) 'fineAmount': fineAmount,
         if (actualDepartureTime != null) 'actualDepartureTime': actualDepartureTime,
         if (watchmanForgot) 'watchmanForgot': watchmanForgot,
+        if (driverName != null) 'driverName': driverName,
+        if (driverPhone != null) 'driverPhone': driverPhone,
+        if (driverEmail != null) 'driverEmail': driverEmail,
+        if (driverCompany != null) 'driverCompany': driverCompany,
+        if (paymentAmount != null) 'paymentAmount': paymentAmount,
       };
 
       bool forceOffline = SyncService().status == SyncStatus.offline || sessionId.startsWith('offline_');

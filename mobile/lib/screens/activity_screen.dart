@@ -635,7 +635,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   final activities = provider.activities.cast<Map<String, dynamic>>();
                   
                   final filteredActivities = activities.where((a) {
-                    if (_selectedFilter == 'Check-Ins' && a['type'] != 'Check-In') return false;
+                    if (_selectedFilter == 'Check-Ins' && a['type'] != 'Check-In' && a['type'] != 'Early Check-In') return false;
                     if (_selectedFilter == 'Check-Outs' && a['type'] != 'Check-Out') return false;
                     
                     if (_selectedDateRange != null) {
@@ -680,7 +680,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       itemCount: filteredActivities.length,
                       itemBuilder: (context, index) {
                         final activity = filteredActivities[index];
-                        final isCheckIn = activity['type'] == 'Check-In';
+                        final isCheckIn = activity['type'] == 'Check-In' || activity['type'] == 'Early Check-In';
                         final color = isCheckIn ? AppTheme.primary : AppTheme.success;
                         final icon = isCheckIn ? LucideIcons.logIn : LucideIcons.logOut;
 

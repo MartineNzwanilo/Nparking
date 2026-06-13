@@ -536,7 +536,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   // ─── Quick check-in for 1-click Check In from card ─────────────────
-  void _quickCheckIn(BuildContext context, Map<String, dynamic> vehicle) async {
+  void _quickCheckIn(BuildContext context, Map<String, dynamic> vehicle, {bool isPreCheckIn = false}) async {
     final provider = context.read<VehicleProvider>();
     final auth = context.read<AuthProvider>();
     final category = vehicle['category']?['name'] ?? 'Sedan/SUV';
@@ -557,6 +557,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         autoSendEmail: auth.autoSendEmail,
         autoSendSms: auth.autoSendSms,
         propertiesLeft: '',
+        isPreCheckIn: isPreCheckIn,
       );
       
       // Inject the vehicle data into session so the receipt can print Plate and Category correctly
@@ -569,7 +570,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       // Force auto print
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${vehicle['plateNumber']} Checked In. Attempting to Print...'),
+          content: Text('${vehicle['plateNumber']} ${isPreCheckIn ? 'Early ' : ''}Checked In. Attempting to Print...'),
           duration: const Duration(seconds: 1),
         ));
       }
@@ -578,8 +579,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${vehicle['plateNumber']} Checked In & Auto-Printed Successfully.'),
-          backgroundColor: AppTheme.success,
+          content: Text('${vehicle['plateNumber']} ${isPreCheckIn ? 'Early ' : ''}Checked In & Auto-Printed Successfully.'),
+          backgroundColor: isPreCheckIn ? AppTheme.warning : AppTheme.success,
         ));
       }
     } catch (e) {
@@ -853,9 +854,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       isOverstayed = CheckoutHelper.hasOverstayed(checkInDate, provider.overstayTimeLimit);
                     }
                     
+                    bool isPreCheckIn = isInside && (v['sessions'][0]['isPreCheckIn'] == true || v['sessions'][0]['isPreCheckIn'] == 'true' || v['sessions'][0]['isPreCheckIn'] == 1);
+                    
                     bool matchesStatus = _filterStatus == 'All' || 
                                          (_filterStatus == 'Inside' && isInside) || 
                                          (_filterStatus == 'Overstayed' && isOverstayed) ||
+                                         (_filterStatus == 'Early' && isPreCheckIn) ||
                                          (_filterStatus == 'Absent' && !isInside);
                     
                     bool matchesCat = _filterCategory == 'All' || (v['category']?['name'] == _filterCategory);
@@ -958,7 +962,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Widget _buildStatusFilterPills() {
-    final statuses = ['Inside', 'Overstayed', 'Absent', 'All'];
+    final statuses = ['Inside', 'Overstayed', 'Absent', 'Early', 'All'];
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 38,
@@ -976,7 +980,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               label: Text(
                 status == 'All' ? context.t.tr('all') : (
                     status == 'Inside' ? context.t.tr('inside') : 
-                    status == 'Overstayed' ? context.t.tr('overstayed') : context.t.tr('absent')
+                    status == 'Overstayed' ? context.t.tr('overstayed') : 
+                    status == 'Early' ? 'Early' : context.t.tr('absent')
                 ),
                 style: TextStyle(
                   color: isSelected 
@@ -1007,7 +1012,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _buildTeslaFilterPills() {
     final vehicleProvider = context.watch<VehicleProvider>();
-    final categories = ['All'] + vehicleProvider.categories
+    final categories = ['All', 'Early'] + vehicleProvider.categories
         .map((cat) => (cat['name'] ?? '').toString())
         .where((name) => name.isNotEmpty)
         .toList();
@@ -1057,6 +1062,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Widget _buildPremiumVehicleCard(Map<String, dynamic> vehicle) {
     bool isInside = vehicle['sessions'] != null && vehicle['sessions'].isNotEmpty && vehicle['sessions'][0]['status'] == 'INSIDE';
     bool isOverstayed = false;
+    bool isPreCheckIn = isInside && vehicle['sessions'][0]['isPreCheckIn'] == true;
+    bool isPaid = isInside && vehicle['sessions'][0]['payment'] != null;
+
     if (isInside) {
       final checkInDate = DateTime.tryParse(vehicle['sessions'][0]['checkIn'] ?? '') ?? DateTime.now();
       isOverstayed = CheckoutHelper.hasOverstayed(checkInDate, context.read<VehicleProvider>().overstayTimeLimit);
@@ -1064,6 +1072,26 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     
     String assetPath = _getVehicleAsset(vehicle['category']?['name']);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    String statusText = context.t.tr('absent').toUpperCase();
+    Color statusColor = isDark ? Colors.white60 : Colors.black54;
+    Color statusBgColor = isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06);
+
+    if (isInside) {
+      if (isPreCheckIn && !isPaid) {
+        statusText = 'NOT READY (PENDING)';
+        statusColor = AppTheme.warning;
+        statusBgColor = AppTheme.warning.withOpacity(0.15);
+      } else if (isPreCheckIn && isPaid) {
+        statusText = 'READY (PAID)';
+        statusColor = AppTheme.success;
+        statusBgColor = AppTheme.success.withOpacity(0.15);
+      } else {
+        statusText = context.t.tr('inside').toUpperCase();
+        statusColor = AppTheme.success;
+        statusBgColor = AppTheme.success.withOpacity(0.15);
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1131,17 +1159,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: isInside 
-                                      ? AppTheme.success.withOpacity(0.15) 
-                                      : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06)),
+                                  color: statusBgColor,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  isInside ? context.t.tr('inside').toUpperCase() : context.t.tr('absent').toUpperCase(),
+                                  statusText,
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
-                                    color: isInside ? AppTheme.success : (isDark ? Colors.white60 : Colors.black54),
+                                    color: statusColor,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -1254,7 +1280,41 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          _quickCheckIn(context, vehicle);
+                          _quickCheckIn(context, vehicle, isPreCheckIn: false);
+                        }
+                      },
+                      onLongPress: () async {
+                        if (!isInside) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              title: Text('Early Check-In', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.warning)),
+                              content: Text('Are you sure you want to Early Check-In vehicle ${vehicle['plateNumber']}?\n\n(Payment and details will be collected at checkout)'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: Text(context.t.tr('cancel')),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.warning),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _quickCheckIn(context, vehicle, isPreCheckIn: true);
+                                  },
+                                  child: const Text('Early Check-In', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _quickCheckIn(context, vehicle, isPreCheckIn: false);
+                                  },
+                                  child: const Text('Normal Check-In', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                ),
+                              ],
+                            )
+                          );
                         }
                       },
                     ),
@@ -1270,8 +1330,31 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   void _showVehiclePreview(BuildContext context, Map<String, dynamic> vehicle) {
     bool isInside = vehicle['sessions'] != null && vehicle['sessions'].isNotEmpty && vehicle['sessions'][0]['status'] == 'INSIDE';
+    bool isPreCheckIn = isInside && (vehicle['sessions'][0]['isPreCheckIn'] == true || vehicle['sessions'][0]['isPreCheckIn'] == 'true' || vehicle['sessions'][0]['isPreCheckIn'] == 1);
+    bool isPaid = isInside && vehicle['sessions'][0]['payment'] != null;
+
     String assetPath = _getVehicleAsset(vehicle['category']?['name']);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    String statusText = context.t.tr('absent').toUpperCase();
+    Color statusColor = isDark ? Colors.white60 : Colors.black54;
+    Color statusBgColor = isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06);
+
+    if (isInside) {
+      if (isPreCheckIn && !isPaid) {
+        statusText = 'NOT READY (PENDING)';
+        statusColor = AppTheme.warning;
+        statusBgColor = AppTheme.warning.withOpacity(0.15);
+      } else if (isPreCheckIn && isPaid) {
+        statusText = 'READY (PAID)';
+        statusColor = AppTheme.success;
+        statusBgColor = AppTheme.success.withOpacity(0.15);
+      } else {
+        statusText = context.t.tr('inside').toUpperCase();
+        statusColor = AppTheme.success;
+        statusBgColor = AppTheme.success.withOpacity(0.15);
+      }
+    }
     
     showModalBottomSheet(
       context: context,
@@ -1322,17 +1405,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isInside 
-                          ? AppTheme.success.withOpacity(0.15) 
-                          : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06)),
+                      color: statusBgColor,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      isInside ? context.t.tr('inside') : context.t.tr('absent'),
+                      statusText,
                       style: TextStyle(
                         fontSize: 12, 
                         fontWeight: FontWeight.bold, 
-                        color: isInside ? AppTheme.success : (isDark ? Colors.white60 : Colors.black54),
+                        color: statusColor,
                       ),
                     ),
                   ),
@@ -1526,12 +1607,35 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       ),
                       onPressed: () async {
                         Navigator.pop(ctx);
-                        final provider = context.read<VehicleProvider>();
                         if (isInside) {
                           final sessionId = vehicle['sessions'][0]['id'];
                           CheckoutHelper.fetchAndConfirmCheckout(context, sessionId);
                         } else {
-                          _quickCheckIn(context, vehicle);
+                          _quickCheckIn(context, vehicle, isPreCheckIn: false);
+                        }
+                      },
+                      onLongPress: () async {
+                        if (!isInside) {
+                          Navigator.pop(ctx);
+                          showDialog(
+                            context: context,
+                            builder: (dialogCtx) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              title: Text('Early Check-In', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.warning)),
+                              content: Text('Are you sure you want to Early Check-In vehicle ${vehicle['plateNumber']}?\n\n(Payment and details will be collected at checkout)'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.warning),
+                                  onPressed: () {
+                                    Navigator.pop(dialogCtx);
+                                    _quickCheckIn(context, vehicle, isPreCheckIn: true);
+                                  },
+                                  child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+                                )
+                              ],
+                            )
+                          );
                         }
                       },
                     ),

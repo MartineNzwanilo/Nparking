@@ -18,7 +18,7 @@ export class ReportService {
     // Fetch all sessions and payments from the last 30 days
     const sessions = await this.prisma.parkingSession.findMany({
       where: sessionWhere,
-      include: { vehicle: { include: { category: true } } }
+      include: { vehicle: { include: { category: true } }, payment: true }
     });
 
     const paymentWhere: any = { collectedAt: { gte: thirtyDaysAgo } };
@@ -32,6 +32,11 @@ export class ReportService {
 
     // Calculate Total Revenue (payments collected)
     const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate Expected Revenue (unpaid early checkins)
+    const expectedRevenue = sessions.reduce((sum, s) => {
+      return (s.isPreCheckIn && !s.payment) ? sum + s.amountDue : sum;
+    }, 0);
 
     // Calculate Total Fines charged in the period
     const totalFines = sessions.reduce((sum, s) => sum + (s.fineAmount ?? 0), 0);
@@ -104,6 +109,7 @@ export class ReportService {
     return {
       keyMetrics: {
         totalRevenue,
+        expectedRevenue,
         totalFines,
         overstayCount,
         totalVehicles,
@@ -138,6 +144,12 @@ export class ReportService {
       where: paymentWhere,
     });
     const todaysRevenue = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
+
+    // Today's Expected Revenue
+    const todaysExpectedSessions = await this.prisma.parkingSession.findMany({
+      where: { ...sessionWhere, checkIn: { gte: today }, isPreCheckIn: true, payment: null },
+    });
+    const todaysExpectedRevenue = todaysExpectedSessions.reduce((sum, s) => sum + s.amountDue, 0);
 
     // Yesterday's Revenue
     const yesterdayStart = new Date();
@@ -231,6 +243,7 @@ export class ReportService {
     return {
       activeVehicles: activeVehiclesCount,
       todaysRevenue,
+      todaysExpectedRevenue,
       todaysFines,
       activeStaff: activeStaffCount,
       securityAlerts: securityAlertsCount,

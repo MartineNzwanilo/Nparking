@@ -52,6 +52,7 @@ export class SessionController {
       driverCompany?: string;
       propertiesLeft?: string;
       siteId?: string;
+      isPreCheckIn?: boolean;
     },
   ) {
     return this.sessionService.checkIn(data, req.user);
@@ -67,6 +68,11 @@ export class SessionController {
       fineAmount?: number;
       actualDepartureTime?: string;
       watchmanForgot?: boolean;
+      driverName?: string;
+      driverPhone?: string;
+      driverCompany?: string;
+      driverEmail?: string;
+      paymentAmount?: number;
     },
   ) {
     return this.sessionService.checkOut(id, data, req.user);

@@ -81,6 +81,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
           builder: (context, adminProvider, child) {
             final metrics = adminProvider.dashboardMetrics;
             final todaysRevenue = metrics?['todaysRevenue'] as num? ?? 0;
+            final todaysExpectedRevenue = metrics?['todaysExpectedRevenue'] as num? ?? 0;
             final activeVehicles = metrics?['activeVehicles'] as num? ?? 0;
             final activeStaff = metrics?['activeStaff'] as num? ?? 0;
             final securityAlerts = metrics?['securityAlerts'] as num? ?? 0;
@@ -149,6 +150,17 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
+                          if (todaysExpectedRevenue > 0) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '+ TZS ${currencyFormat.format(todaysExpectedRevenue)} Expected (Unpaid Early Check-Ins)',
+                              style: const TextStyle(
+                                color: AppTheme.warning,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           Row(
                             children: [

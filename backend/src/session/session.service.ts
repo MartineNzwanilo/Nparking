@@ -323,6 +323,7 @@ export class SessionService {
       autoSendSms?: boolean;
       propertiesLeft?: string;
       siteId?: string;
+      isPreCheckIn?: boolean;
     },
     actor: SessionActor,
   ) {
@@ -390,11 +391,12 @@ export class SessionService {
         driverCompany: data.driverCompany?.trim() || null,
         driverEmail: data.driverEmail?.trim() || null,
         propertiesLeft: data.propertiesLeft?.trim() || null,
+        isPreCheckIn: data.isPreCheckIn || false,
       },
     });
 
-    // Create the Payment if amount > 0 (or just record it)
-    if (amountDue > 0) {
+    // Create the Payment if amount > 0 (or just record it), unless it's a pre-checkin
+    if (amountDue > 0 && !data.isPreCheckIn) {
       await this.prisma.payment.create({
         data: {
           sessionId: session.id,
@@ -405,7 +407,7 @@ export class SessionService {
     }
 
     // Trigger check-in notifications asynchronously in background
-    if (shouldSendSms || shouldSendEmail) {
+    if ((shouldSendSms || shouldSendEmail) && !data.isPreCheckIn) {
       this.triggerCheckInNotifications(session.id, shouldSendSms, shouldSendEmail)
         .catch(err => {
           this.logger.error(`Error processing check-in notifications for session ${session.id}: ${err.message}`);
@@ -450,6 +452,11 @@ export class SessionService {
       fineAmount?: number;
       actualDepartureTime?: string;
       watchmanForgot?: boolean;
+      driverName?: string;
+      driverPhone?: string;
+      driverCompany?: string;
+      driverEmail?: string;
+      paymentAmount?: number;
     },
     actor: SessionActor,
   ) {
@@ -469,7 +476,38 @@ export class SessionService {
       );
     }
 
-    return this.prisma.parkingSession.update({
+    const isPreCheckIn = session.isPreCheckIn;
+
+    // Create payment if this was a pre-check-in
+    if (isPreCheckIn && data.paymentAmount && data.paymentAmount > 0) {
+      const existingPayment = await this.prisma.payment.findUnique({
+        where: { sessionId },
+      });
+      if (!existingPayment) {
+        await this.prisma.payment.create({
+          data: {
+            sessionId: session.id,
+            amount: data.paymentAmount,
+            method: 'CASH',
+          },
+        });
+      }
+    }
+
+    // Update vehicle details if provided during checkout (common for pre-check-in)
+    if (data.driverName || data.driverPhone || data.driverEmail || data.driverCompany) {
+      await this.prisma.vehicle.update({
+        where: { id: session.vehicleId },
+        data: {
+          ownerName: data.driverName?.trim() || undefined,
+          phone: data.driverPhone?.trim() || undefined,
+          email: data.driverEmail?.trim() || undefined,
+          company: data.driverCompany?.trim() || undefined,
+        },
+      });
+    }
+
+    const updatedSession = await this.prisma.parkingSession.update({
       where: { id: sessionId },
       data: {
         status: 'CHECKED_OUT',
@@ -477,8 +515,21 @@ export class SessionService {
         fineAmount: data.fineAmount,
         actualDepartureTime: data.actualDepartureTime ? new Date(data.actualDepartureTime) : null,
         watchmanForgot: data.watchmanForgot || false,
+        driverName: data.driverName?.trim() || session.driverName,
+        driverPhone: data.driverPhone?.trim() || session.driverPhone,
+        driverEmail: data.driverEmail?.trim() || session.driverEmail,
+        driverCompany: data.driverCompany?.trim() || session.driverCompany,
       },
     });
+
+    // Optionally send notifications here for pre-check-ins, since they weren't sent at check-in
+    if (isPreCheckIn && (user.autoSendSms || user.autoSendEmail)) {
+      this.triggerCheckInNotifications(session.id, user.autoSendSms, user.autoSendEmail).catch(err => {
+        this.logger.error(`Error processing late check-in notifications for session ${session.id}: ${err.message}`);
+      });
+    }
+
+    return updatedSession;
   }
 
   async getActivityLog(actor: SessionActor, startDate?: string, endDate?: string) {
@@ -522,12 +573,23 @@ export class SessionService {
     const activities = [];
 
     for (const s of sessions) {
+      let checkInSubtitle = `${s.vehicle.category.name} - Collected TZS ${s.payment?.amount || 0}`;
+      let activityType = 'Check-In';
+      
+      if (s.isPreCheckIn && !s.payment) {
+        checkInSubtitle = `${s.vehicle.category.name} - Payment Pending (Not Ready)`;
+        activityType = 'Early Check-In';
+      } else if (s.isPreCheckIn && s.payment) {
+        checkInSubtitle = `${s.vehicle.category.name} - Paid (Ready)`;
+        activityType = 'Early Check-In';
+      }
+
       // Add Check-In event
       activities.push({
         id: `in_${s.id}`,
-        type: 'Check-In',
+        type: activityType,
         title: `${s.vehicle.plateNumber} Checked In`,
-        subtitle: `${s.vehicle.category.name} - Collected TZS ${s.payment?.amount || 0}`,
+        subtitle: checkInSubtitle,
         timestamp: s.checkIn.toISOString(),
         propertiesLeft: s.propertiesLeft,
       });

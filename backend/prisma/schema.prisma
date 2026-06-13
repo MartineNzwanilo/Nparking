@@ -133,6 +133,7 @@ model ParkingSession {
   fineAmount          Float?
   actualDepartureTime DateTime?
   watchmanForgot      Boolean  @default(false)
+  isPreCheckIn        Boolean  @default(false)
   
   payment     Payment?
 }

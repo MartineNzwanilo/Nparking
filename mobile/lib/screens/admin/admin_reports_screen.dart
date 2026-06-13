@@ -677,6 +677,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
     final keyMetrics = overview['keyMetrics'] as Map<String, dynamic>? ?? {};
     final totalRevenue = keyMetrics['totalRevenue'] as num? ?? 0;
+    final expectedRevenue = keyMetrics['expectedRevenue'] as num? ?? 0;
     final totalVehicles = keyMetrics['totalVehicles'] as num? ?? 0;
     final avgSessionDuration = keyMetrics['avgSessionDuration']?.toString() ?? '—';
 
@@ -698,6 +699,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 'Tsh ${currencyFormatter.format(totalRevenue)}',
                 LucideIcons.wallet,
                 AppTheme.success,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                'Expected Revenue',
+                'Tsh ${currencyFormatter.format(expectedRevenue)}',
+                LucideIcons.banknote,
+                AppTheme.warning,
               ),
             ),
           ],

@@ -305,9 +305,15 @@ class CheckoutHelper {
             ),
             child: Material(
               color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+                  bool isPreCheckIn = session['isPreCheckIn'] == true || session['isPreCheckIn'] == 'true' || session['isPreCheckIn'] == 1;
+                  TextEditingController nameCtrl = TextEditingController(text: driverName == 'N/A' ? '' : driverName);
+                  TextEditingController phoneCtrl = TextEditingController(text: driverPhone == 'N/A' ? '' : driverPhone);
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                   Container(
                     width: 60,
                     height: 60,
@@ -350,10 +356,61 @@ class CheckoutHelper {
                   _buildTicketRow(ctx, 'Vehicle Category', category),
                   _buildTicketRow(ctx, 'Entry Time', dateStr),
                   _buildTicketRow(ctx, 'Stay Duration', durationStr, highlight: true),
-                  _buildTicketRow(ctx, 'Driver Name', driverName),
-                  _buildTicketRow(ctx, 'Driver Phone', driverPhone),
-                  _buildTicketRow(ctx, 'Driver Company', driverCompany),
-                  _buildTicketRow(ctx, 'Amount Collected', 'TZS ${amount.toStringAsFixed(0)}', isBold: true, color: AppTheme.success),
+                  
+                  if (isPreCheckIn) ...[
+                    const SizedBox(height: 12),
+                    const Divider(color: Colors.grey, height: 1),
+                    const SizedBox(height: 12),
+                    
+                    if (driverName == 'N/A') ...[
+                      const Text("Driver Details (Required for First-Time Vehicle)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Driver Name',
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Driver Phone',
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    ] else ...[
+                      _buildTicketRow(ctx, 'Driver Name', driverName),
+                      _buildTicketRow(ctx, 'Driver Phone', driverPhone),
+                      _buildTicketRow(ctx, 'Driver Company', driverCompany),
+                      const SizedBox(height: 8),
+                    ],
+                    
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.warning.withOpacity(0.5)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text('PENDING PAYMENT', style: TextStyle(color: AppTheme.warning, fontWeight: FontWeight.bold, fontSize: 12)),
+                          const SizedBox(height: 4),
+                          _buildTicketRow(ctx, 'Amount To Collect', 'TZS ${amount.toStringAsFixed(0)}', isBold: true, color: AppTheme.warning),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    _buildTicketRow(ctx, 'Driver Name', driverName),
+                    _buildTicketRow(ctx, 'Driver Phone', driverPhone),
+                    _buildTicketRow(ctx, 'Driver Company', driverCompany),
+                    _buildTicketRow(ctx, 'Amount Collected', 'TZS ${amount.toStringAsFixed(0)}', isBold: true, color: AppTheme.success),
+                  ],
                   
                   const SizedBox(height: 24),
                   
@@ -379,42 +436,55 @@ class CheckoutHelper {
                           ),
                           onPressed: () async {
                             Navigator.pop(ctx);
-                            
                             showDialog(
                               context: context,
                               barrierDismissible: false,
-                              builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+                              builder: (loadingCtx) {
+                                Future.microtask(() async {
+                                  try {
+                                    await context.read<VehicleProvider>().checkOutVehicle(
+                                      sessionId,
+                                      driverName: isPreCheckIn ? nameCtrl.text.trim() : null,
+                                      driverPhone: isPreCheckIn ? phoneCtrl.text.trim() : null,
+                                      paymentAmount: isPreCheckIn ? amount : null,
+                                    );
+                                    if (loadingCtx.mounted) {
+                                      Navigator.pop(loadingCtx);
+                                    }
+                                    if (context.mounted) {
+                                      context.read<ActivityProvider>().fetchActivities();
+                                      GlobalPopup.showSuccess(
+                                        context,
+                                        'Vehicle $plate checked out successfully.',
+                                        title: 'Checkout Success',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (loadingCtx.mounted) {
+                                      Navigator.pop(loadingCtx);
+                                    }
+                                    if (context.mounted) {
+                                      String errorMsg = e.toString().toLowerCase();
+                                      if (errorMsg.contains('403') || errorMsg.contains('forbidden')) {
+                                        GlobalPopup.showError(context, 'You can only check out sessions created by you.');
+                                      } else {
+                                        GlobalPopup.showError(context, 'Failed to complete checkout. Please try again.');
+                                      }
+                                    }
+                                  }
+                                });
+                                return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
+                              },
                             );
-
-                            try {
-                              await context.read<VehicleProvider>().checkOutVehicle(sessionId);
-                              Navigator.pop(context);
-                              if (context.mounted) {
-                                context.read<ActivityProvider>().fetchActivities();
-                              }
-                              
-                              GlobalPopup.showSuccess(
-                                context,
-                                'Vehicle $plate checked out successfully.',
-                                title: 'Checkout Success',
-                              );
-                            } catch (e) {
-                              Navigator.pop(context);
-                              String errorMsg = e.toString().toLowerCase();
-                              if (errorMsg.contains('403') || errorMsg.contains('forbidden')) {
-                                GlobalPopup.showError(context, 'You can only check out sessions created by you.');
-                              } else {
-                                GlobalPopup.showError(context, 'Failed to complete checkout. Please try again.');
-                              }
-                            }
                           },
-                          child: const Text('Check Out', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: Text(isPreCheckIn ? 'Confirm Payment & Check Out' : 'Check Out', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
                   ),
                 ],
-              ),
+              );
+            }),
             ),
           ),
         );
