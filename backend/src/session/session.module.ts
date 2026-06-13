@@ -4,10 +4,11 @@ import { SessionService } from './session.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationService } from '../notification/notification.service';
+import { NotificationGateway } from '../notification/notification.gateway';
 
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [SessionController],
-  providers: [SessionService, NotificationService],
+  providers: [SessionService, NotificationService, NotificationGateway],
 })
 export class SessionModule {}

@@ -12,10 +12,12 @@ import 'providers/shell_navigation_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/admin_provider.dart';
 import 'services/sync_service.dart';
+import 'core/socket_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SyncService().initialize();
+  SocketService().initialize();
   
   runApp(
     MultiProvider(
@@ -42,6 +44,7 @@ class SmartParkingApp extends StatelessWidget {
     return Consumer2<ThemeProvider, LocaleProvider>(
       builder: (context, themeProvider, localeProvider, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'Smart Parking',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,

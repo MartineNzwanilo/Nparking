@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
+import { NotificationGateway } from '../notification/notification.gateway';
 
 type SessionActor = {
   userId: string;
@@ -23,6 +24,7 @@ export class SessionService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private notificationGateway: NotificationGateway,
   ) {}
 
   private async resolveOperatorContext(actor: SessionActor) {
@@ -647,10 +649,20 @@ export class SessionService {
     if (!session) throw new NotFoundException('Session not found');
     if (session.status !== 'INSIDE') throw new BadRequestException('Vehicle is already checked out');
 
-    return this.prisma.parkingSession.update({
+    const updatedSession = await this.prisma.parkingSession.update({
       where: { id: sessionId },
       data: { lodgeRequestStatus: 'PENDING' },
+      include: { vehicle: true, watchman: true }
     });
+
+    this.notificationGateway.broadcastLodgeRequest({
+      sessionId: updatedSession.id,
+      plateNumber: updatedSession.vehicle.plateNumber,
+      watchmanName: updatedSession.watchman?.name || 'Unknown',
+      siteId: updatedSession.siteId,
+    });
+
+    return updatedSession;
   }
 
   async getLodgeRequests(actor: SessionActor, status?: string) {
@@ -693,14 +705,25 @@ export class SessionService {
     });
     if (!session) throw new NotFoundException('Session not found');
 
-    return this.prisma.parkingSession.update({
+    const updatedSession = await this.prisma.parkingSession.update({
       where: { id: sessionId },
       data: {
         lodgeRequestStatus: 'APPROVED',
         lodgeRoomNumber: roomNumber,
         amountDue: 0,
       },
+      include: { vehicle: true }
     });
+
+    this.notificationGateway.broadcastLodgeResponse({
+      sessionId: updatedSession.id,
+      plateNumber: updatedSession.vehicle.plateNumber,
+      status: 'APPROVED',
+      siteId: updatedSession.siteId,
+      watchmanId: updatedSession.watchmanId,
+    });
+
+    return updatedSession;
   }
 
   async rejectLodgeRequest(sessionId: string, actor: SessionActor) {
@@ -714,9 +737,20 @@ export class SessionService {
     });
     if (!session) throw new NotFoundException('Session not found');
 
-    return this.prisma.parkingSession.update({
+    const updatedSession = await this.prisma.parkingSession.update({
       where: { id: sessionId },
       data: { lodgeRequestStatus: 'REJECTED' },
+      include: { vehicle: true }
     });
+
+    this.notificationGateway.broadcastLodgeResponse({
+      sessionId: updatedSession.id,
+      plateNumber: updatedSession.vehicle.plateNumber,
+      status: 'REJECTED',
+      siteId: updatedSession.siteId,
+      watchmanId: updatedSession.watchmanId,
+    });
+
+    return updatedSession;
   }
 }

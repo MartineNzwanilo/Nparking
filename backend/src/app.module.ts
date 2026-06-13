@@ -12,6 +12,7 @@ import { CameraModule } from './camera/camera.module';
 import { DetectionModule } from './detection/detection.module';
 
 import { NotificationService } from './notification/notification.service';
+import { NotificationGateway } from './notification/notification.gateway';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { UploadModule } from './upload/upload.module';
@@ -31,6 +32,6 @@ import { BackupModule } from './backup/backup.module';
     BackupModule,
   ],
   controllers: [AppController],
-  providers: [AppService, NotificationService],
+  providers: [AppService, NotificationService, NotificationGateway],
 })
 export class AppModule {}
