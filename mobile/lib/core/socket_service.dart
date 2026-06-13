@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'api_service.dart';
+import 'constants.dart';
 import 'theme.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -21,7 +22,7 @@ class SocketService {
   void initialize() {
     if (_socket != null) return;
     
-    final baseUrl = ApiService.baseUrl.replaceFirst('/api', '');
+    final baseUrl = ApiConstants.apiBaseUrl.replaceFirst('/api', '');
 
     _socket = IO.io(
       '$baseUrl/notifications',
@@ -55,10 +56,10 @@ class SocketService {
     
     // Check if user is logged in
     final auth = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
-    if (!auth.isAuthenticated || auth.user == null) return;
+    if (!auth.isAuthenticated) return;
 
-    final userRole = auth.user!['role'];
-    final userSiteId = auth.user!['siteId'];
+    final userRole = auth.role;
+    final userSiteId = auth.siteId;
     final alertSiteId = data['siteId'];
 
     // If alert has a siteId, ignore it if it's not the user's site AND user is not an ADMIN
