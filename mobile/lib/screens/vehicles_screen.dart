@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import '../core/api_service.dart';
 import '../core/theme.dart';
 import '../core/parking_i18n.dart';
 import '../core/global_popup.dart';
@@ -1889,28 +1890,20 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Future<void> _requestLodgeParking(BuildContext context, String sessionId) async {
     try {
-      final auth = context.read<AuthProvider>();
-      final uri = Uri.parse('${Config.apiUrl}/api/sessions/$sessionId/lodge-request');
-      final res = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer ${auth.token}',
-        },
-      );
-      if (res.statusCode == 200) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lodge parking request sent.'), backgroundColor: AppTheme.success)
-          );
-        }
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to request lodge parking.')),
-          );
-        }
+      final api = ApiService();
+      await api.post('/sessions/$sessionId/lodge-request', {});
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lodge parking request sent.'), backgroundColor: AppTheme.success)
+        );
       }
     } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to request lodge parking.'), backgroundColor: AppTheme.error)
+        );
+      }
       debugPrint('Error requesting lodge parking: $e');
     }
   }

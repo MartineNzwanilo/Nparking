@@ -1,11 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:provider/provider.dart';
 import '../core/theme.dart';
-import '../core/config.dart';
-import '../providers/auth_provider.dart';
+import '../core/api_service.dart';
 
 class LodgemanDashboardScreen extends StatefulWidget {
   const LodgemanDashboardScreen({super.key});
@@ -27,18 +23,11 @@ class _LodgemanDashboardScreenState extends State<LodgemanDashboardScreen> {
   Future<void> _fetchRequests() async {
     setState(() => _isLoading = true);
     try {
-      final auth = context.read<AuthProvider>();
-      final uri = Uri.parse('${Config.apiUrl}/api/sessions/lodge/requests');
-      final res = await http.get(uri, headers: {
-        'Authorization': 'Bearer ${auth.token}',
+      final api = ApiService();
+      final data = await api.get('/sessions/lodge/requests');
+      setState(() {
+        _requests = data;
       });
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        setState(() {
-          _requests = data;
-        });
-      }
     } catch (e) {
       debugPrint('Failed to fetch lodge requests: $e');
     } finally {
@@ -105,20 +94,10 @@ class _LodgemanDashboardScreenState extends State<LodgemanDashboardScreen> {
 
   Future<void> _handleApprove(String sessionId, String roomNumber) async {
     try {
-      final auth = context.read<AuthProvider>();
-      final uri = Uri.parse('${Config.apiUrl}/api/sessions/$sessionId/lodge-approve');
-      final res = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer ${auth.token}',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'roomNumber': roomNumber}),
-      );
-      if (res.statusCode == 200) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request approved.'), backgroundColor: AppTheme.success));
-        _fetchRequests();
-      }
+      final api = ApiService();
+      await api.post('/sessions/$sessionId/lodge-approve', {'roomNumber': roomNumber});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request approved.'), backgroundColor: AppTheme.success));
+      _fetchRequests();
     } catch (e) {
       debugPrint('Error approving: $e');
     }
@@ -126,18 +105,10 @@ class _LodgemanDashboardScreenState extends State<LodgemanDashboardScreen> {
 
   Future<void> _handleReject(String sessionId) async {
     try {
-      final auth = context.read<AuthProvider>();
-      final uri = Uri.parse('${Config.apiUrl}/api/sessions/$sessionId/lodge-reject');
-      final res = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer ${auth.token}',
-        },
-      );
-      if (res.statusCode == 200) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request rejected.')));
-        _fetchRequests();
-      }
+      final api = ApiService();
+      await api.post('/sessions/$sessionId/lodge-reject', {});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request rejected.')));
+      _fetchRequests();
     } catch (e) {
       debugPrint('Error rejecting: $e');
     }
