@@ -58,6 +58,7 @@ export default function DashboardPage() {
   const todaysRevenue = data?.todaysRevenue ?? 0
   const activeStaff = data?.activeStaff ?? 0
   const securityAlerts = data?.securityAlerts ?? 0
+  const freeLodgeParkings = data?.freeLodgeParkings ?? 0
   const recentActivity = data?.recentActivity ?? []
   const hourlyTraffic = data?.hourlyTraffic ?? []
 
@@ -71,7 +72,7 @@ export default function DashboardPage() {
     <div className="w-full h-full flex flex-col gap-6 pb-10">
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard
           title="Active Vehicles"
           value={isLoading ? "—" : activeVehicles.toString()}
@@ -87,18 +88,25 @@ export default function DashboardPage() {
           delay={0.2}
         />
         <StatCard
+          title="Free Parkings"
+          value={isLoading ? "—" : freeLodgeParkings.toString()}
+          icon="parking"
+          trend={{ value: 0, label: "Lodge guests today", isPositive: true }}
+          delay={0.3}
+        />
+        <StatCard
           title="Security Alerts"
           value={isLoading ? "—" : securityAlerts.toString()}
           icon="security-camera"
           trend={{ value: 0, label: securityAlerts > 0 ? "Blacklisted inside!" : "All clear", isPositive: securityAlerts === 0 }}
-          delay={0.3}
+          delay={0.4}
         />
         <StatCard
           title="Active Staff"
           value={isLoading ? "—" : activeStaff.toString()}
           icon="user-male-circle"
           trend={{ value: 0, label: "Registered accounts", isPositive: true }}
-          delay={0.4}
+          delay={0.5}
         />
       </div>
 

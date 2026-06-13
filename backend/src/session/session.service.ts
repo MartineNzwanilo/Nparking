@@ -721,6 +721,8 @@ export class SessionService {
       status: 'APPROVED',
       siteId: updatedSession.siteId,
       watchmanId: updatedSession.watchmanId,
+      roomNumber: roomNumber,
+      lodgemanName: user.name,
     });
 
     return updatedSession;
@@ -749,6 +751,7 @@ export class SessionService {
       status: 'REJECTED',
       siteId: updatedSession.siteId,
       watchmanId: updatedSession.watchmanId,
+      lodgemanName: user.name,
     });
 
     return updatedSession;

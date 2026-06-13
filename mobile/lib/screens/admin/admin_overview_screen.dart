@@ -85,6 +85,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
             final activeVehicles = metrics?['activeVehicles'] as num? ?? 0;
             final activeStaff = metrics?['activeStaff'] as num? ?? 0;
             final securityAlerts = metrics?['securityAlerts'] as num? ?? 0;
+            final freeLodgeParkings = metrics?['freeLodgeParkings'] as num? ?? 0;
             final revenueChangePercent = (metrics?['revenueChangePercent'] as num?)?.toDouble() ?? 0.0;
             final isPositive = revenueChangePercent >= 0;
             final trendColor = isPositive ? AppTheme.success : AppTheme.error;
@@ -216,7 +217,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                       children: [
                         Expanded(child: _buildMetricCard('AI Alerts', '$securityAlerts', LucideIcons.alertTriangle, context, color: AppTheme.error)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildMetricCard('Avg Process Time', '3.2s', LucideIcons.zap, context, color: AppTheme.success)),
+                        Expanded(child: _buildMetricCard('Free Parkings', '$freeLodgeParkings', LucideIcons.parkingSquare, context, color: AppTheme.success)),
                       ],
                     ),
                   ],

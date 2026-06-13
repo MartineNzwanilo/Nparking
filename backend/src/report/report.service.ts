@@ -117,7 +117,8 @@ export class ReportService {
         totalFines,
         overstayCount,
         totalVehicles,
-        avgSessionDuration
+        avgSessionDuration,
+        freeLodgeParkings
       },
       revenueOverTime,
       vehicleDistribution
@@ -162,7 +163,16 @@ export class ReportService {
     });
     const todaysExpectedRevenue = todaysExpectedSessions.reduce((sum, s) => sum + s.amountDue, 0);
 
-    // Yesterday's Revenue
+    // Today's Free Lodge Parkings
+    const todaysFreeLodgeParkings = await this.prisma.parkingSession.count({
+      where: {
+        ...sessionWhere,
+        checkIn: { gte: today },
+        lodgeRequestStatus: 'APPROVED',
+      },
+    });
+
+    // Today's Vehicle Types
     const yesterdayStart = new Date();
     yesterdayStart.setDate(yesterdayStart.getDate() - 1);
     yesterdayStart.setHours(0, 0, 0, 0);
@@ -261,6 +271,7 @@ export class ReportService {
       recentActivity,
       hourlyTraffic,
       revenueChangePercent,
+      freeLodgeParkings: todaysFreeLodgeParkings,
     };
   }
 

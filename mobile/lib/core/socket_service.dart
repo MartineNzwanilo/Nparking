@@ -43,7 +43,13 @@ class SocketService {
 
     _socket!.on('lodge_response', (data) {
       debugPrint('Received lodge_response: $data');
-      _handleIncomingAlert('Lodge Request ${data['status']}', 'Vehicle: ${data['plateNumber']}\nStatus: ${data['status']}', data);
+      String extraDetails = '';
+      if (data['status'] == 'APPROVED') {
+        extraDetails = '\nLodgeman: ${data['lodgemanName']}\nRoom No: ${data['roomNumber']}';
+      } else {
+        extraDetails = '\nRejected By: ${data['lodgemanName']}';
+      }
+      _handleIncomingAlert('Lodge Request ${data['status']}', 'Vehicle: ${data['plateNumber']}$extraDetails', data);
     });
 
     _socket!.onDisconnect((_) => debugPrint('Disconnected from Notification Gateway'));
