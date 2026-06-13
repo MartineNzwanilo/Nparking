@@ -12,6 +12,8 @@ import '../scanner_screen.dart';
 import '../../services/printing_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/admin_provider.dart';
+import '../../core/checkout_helper.dart';
+
 class AdminVehiclesScreen extends StatefulWidget {
   const AdminVehiclesScreen({super.key});
 
@@ -407,6 +409,7 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                 ? currentVehicle['sessions'][0]
                 : null;
             final curIsBlacklisted = currentVehicle['isBlacklisted'] ?? false;
+            final curIsPreCheckIn = curIsInside && (curLatestSession?['isPreCheckIn'] == true || curLatestSession?['isPreCheckIn'] == 'true' || curLatestSession?['isPreCheckIn'] == 1);
 
             IconData icon = LucideIcons.car;
             final catName = currentVehicle['category']?['name'] ?? 'Sedan/SUV';
@@ -491,16 +494,24 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: curIsInside ? AppTheme.success.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                          color: curIsPreCheckIn
+                              ? AppTheme.warning.withOpacity(0.1)
+                              : (curIsInside ? AppTheme.success.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: curIsInside ? AppTheme.success.withOpacity(0.3) : Colors.transparent),
+                          border: Border.all(
+                            color: curIsPreCheckIn
+                                ? AppTheme.warning.withOpacity(0.3)
+                                : (curIsInside ? AppTheme.success.withOpacity(0.3) : Colors.transparent)
+                          ),
                         ),
                         child: Text(
-                          curIsInside ? 'Parked Inside' : 'Absent',
+                          curIsPreCheckIn
+                              ? 'NOT READY (PENDING)'
+                              : (curIsInside ? 'Parked Inside' : 'Absent'),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: curIsInside ? AppTheme.success : Colors.grey,
+                            color: curIsPreCheckIn ? AppTheme.warning : (curIsInside ? AppTheme.success : Colors.grey),
                           ),
                         ),
                       ),
@@ -600,7 +611,7 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                               onPressed: () {
                                 Navigator.pop(ctx);
                                 if (curIsInside && curLatestSession != null) {
-                                  _confirmCheckOut(curLatestSession, currentVehicle['plateNumber'] ?? 'Unknown');
+                                  CheckoutHelper.fetchAndConfirmCheckout(context, curLatestSession['id']);
                                 } else {
                                   _confirmCheckIn(currentVehicle);
                                 }
@@ -957,7 +968,8 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
     final siteName = latestSession != null && latestSession['site'] != null
         ? latestSession['site']['name'] ?? 'Main'
         : 'Main';
-    final statusText = isInside ? 'Inside ($siteName)' : 'Absent';
+    final bool isPreCheckIn = isInside && (latestSession?['isPreCheckIn'] == true || latestSession?['isPreCheckIn'] == 'true' || latestSession?['isPreCheckIn'] == 1);
+    final String statusText = isPreCheckIn ? 'PENDING' : (isInside ? 'Inside ($siteName)' : 'Absent');
     bool isBlacklisted = vehicle['isBlacklisted'] ?? false;
     
     IconData icon = LucideIcons.car;
@@ -1031,7 +1043,7 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isInside ? AppTheme.success.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: isPreCheckIn ? AppTheme.warning.withOpacity(0.1) : (isInside ? AppTheme.success.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1039,7 +1051,7 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isInside ? AppTheme.success : Colors.grey,
+                      color: isPreCheckIn ? AppTheme.warning : (isInside ? AppTheme.success : Colors.grey),
                     ),
                   ),
                 ),
